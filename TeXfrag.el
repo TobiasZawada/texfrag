@@ -373,7 +373,7 @@ in the latex target file."
       (setq-local TeXfrag-source-buffer src-buf)
       (save-buffer)
       (normal-mode)
-      (add-hook 'TeXfrag-after-preview-hook #'TeXfrag-after-tex)
+      (add-hook 'TeXfrag-after-preview-hook #'TeXfrag-after-tex t t)
       (let ((preview-auto-cache-preamble t))
 	(preview-document)))))
 
