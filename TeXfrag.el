@@ -89,6 +89,9 @@ If there is a collision with the major mode you can change this prefix in the ma
 (require 'tex-site nil t)
 (require 'preview nil t)
 (require 'cl-lib)
+(require 'tex-site)
+(require 'tex)
+(require 'subr-x)
 
 (defvar TeXfrag-header-function #'TeXfrag-header-default
   "Function that collects all LaTeX header contents from the current buffer.")
