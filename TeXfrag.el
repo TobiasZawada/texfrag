@@ -89,16 +89,57 @@ If there is a collision with the major mode you can change this prefix in the ma
   :group 'TeXfrag
   :type 'file)
 
+(define-widget 'TeXfrag-regexp 'string
+  "A regular expression."
+  :match 'TeXfrag-widget-regexp-match
+  :validate 'TeXfrag-widget-regexp-validate
+  ;; Doesn't work well with terminating newline.
+  ;; :value-face 'widget-single-line-field
+  :tag "Regexp")
+
+(defun TeXfrag-not-regexp-with-refs-p (val)
+  "Check whether VAL is *not* a valid regular expression with group references.
+Returns the error message of `string-match' if VAL is not a regular expression.
+Group references are just ignored.
+If VAL is a widget instead of a string (widget-value val) is tested."
+  (when (widgetp val)
+    (setq val (widget-value val)))
+  (let ((pos 0))
+    (while (string-match "\\(?:^\\|[^\\\\]\\)\\(?:\\\\\\\\\\)*\\(\\\\\\)[0-9]" val pos)
+      (setq val (replace-match "\\\\\\\\" nil nil val 1)
+            pos (match-end 0))))
+  (condition-case err
+      (string-match val "")
+    (error (error-message-string err))))
+
+(defun TeXfrag-widget-regexp-match (_widget value)
+  "Return non-nil if VALUE is a valid regexps with additional group references."
+  (and (stringp value)
+       (null (TeXfrag-not-regexp-with-refs-p value))))
+
+(defun TeXfrag-widget-regexp-validate (widget)
+  "Return WIDGET with non-nil :error property if VALUE is not a valid regexps with additional group references."
+  (let ((err (TeXfrag-not-regexp-with-refs-p widget)))
+    (when err
+      (widget-put widget :error err)
+      widget)))
+
 (defcustom TeXfrag-LaTeX-frag-alist
-  '(("\\$\\$" "\\$\\$" "$$" "$$")
-    ("\\$" "\\$" "$" "$")
-    ("\\\\\\[" "\\\\\\]" "\\\\[" "\\\\]")
-    ("\\\\(" "\\\\)" "\\\\(" "\\\\)")
-    ("\\\\begin{\\([a-z*]+\\)}" "\\\\end{\\1}" "\\\\begin{\\2}" "\\\\end{\\2}"))
-  "`TeXfrag-frag-alist for LaTeX."
+  '(("\\$\\$" "\\$\\$" "$$" "$$" display)
+    ("\\$" "\\$" "$" "$" embedded)
+    ("\\\\\\[" "\\\\\\]" "\\\\[" "\\\\]" display)
+    ("\\\\(" "\\\\)" "\\\\(" "\\\\)" embedded)
+    ("\\\\begin{\\([a-z*]+\\)}" "\\\\end{\\1}" "\\\\begin{\\2}" "\\\\end{\\2}" display)
+    )
+  "`TeXfrag-frag-alist' for LaTeX."
   :group 'TeXfrag
   :type '(repeat
-          (list string string string string)))
+          (list :tag "Equation filter"
+                (regexp :tag "Regexp matching the equation beginning")
+                (TeXfrag-regexp :tag "Regexp matching the equation end")
+                (string :tag "Replacement of beginning in LaTeX buffer")
+                (string :tag "Replacement of end in LaTeX buffer")
+                (choice :tag "Equation type" (const display) (const embedded)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (require 'newcomment)
@@ -123,11 +164,12 @@ It is called with:
 
 It returns nil if there is no LaTeX fragment within the region.
 Otherwise it returns a list
-(b e eqn)
+(b e eqn match)
 with
 b: beginning of equation region
 e: end of equation region
-eqn: equation text inclusive delimiters, e.g., $ or \\begin{align*}...\\end{align*} (it is not necessarily equal to (buffer-substring b e))")
+eqn: equation text inclusive delimiters, e.g., $ or \\begin{align*}...\\end{align*} (it is not necessarily equal to (buffer-substring b e))
+match: entry from `TeXfrag-frag-alist' associated with the match")
 
 (defvar TeXfrag-previous-frag-function #'TeXfrag-previous-frag-default
   "Function that searches for the previous LaTeX fragment starting at point.
@@ -150,19 +192,21 @@ Modify this variable in the major mode hook.")
 (make-variable-buffer-local 'TeXfrag-comments-only)
 
 (defvar-local TeXfrag-frag-alist
-  '(("\\\\f\\$" "\\\\f\\$" "$" "$")
-    ("\\\\f\\[" "\\\\f\\]" "\\[" "\\]")
-    ("\\\\f{\\([a-z]+[*]?\\)}{" "\\\\f}" "\\\\begin{\\2}" "\\\\end{\\2}") ;; e.g., \f{align*}{ some formula \f}
+  '(("\\\\f\\$" "\\\\f\\$" "$" "$" embedded)
+    ("\\\\f\\[" "\\\\f\\]" "\\[" "\\]" display)
+    ("\\\\f{\\([a-z]+[*]?\\)}{" "\\\\f}" "\\\\begin{\\2}" "\\\\end{\\2}" display) ;; e.g., \f{align*}{ some formula \f}
     )
   "Regular expressions for the beginning and the end of formulas.
 Override the default in the hook for the major mode.
 The default works for some LaTeX fragments in doxygen.
 
 The value is a list of equation-filters.
-Each equation-filter is a list of four strings.
+Each equation-filter is a list of four strings and an optional flag.
 
 The first two strings are regular expressions and match the beginning and the end of an equation in the original buffer.
 The last two strings are the beginning and the end of the corresponding equation in the LaTeX buffer.
+
+If the optional flag equals the symbol display then this equation should be displayed on a separate line. It should be embedded otherwise.
 
 Capturing groups can be used in the first two regular expressions. These groups can be referred to in the last two strings.
 The indexes for the captures are determined as match for the combined regular expression
@@ -258,7 +302,8 @@ See the documentation of `TeXfrag-next-frag-function' for further details about 
         (list bOuter eOuter
               (concat (replace-match (nth 2 matchList) nil nil cStr)
                       (funcall TeXfrag-equation-filter (buffer-substring-no-properties bInner eInner))
-                      (replace-match (nth 3 matchList) nil nil cStr)))))))
+                      (replace-match (nth 3 matchList) nil nil cStr))
+	      matchList)))))
 
 (defun TeXfrag-previous-frag-default (bound)
   "Search for the next LaTeX fragment.
@@ -499,9 +544,8 @@ in the latex target file."
           (preview-document)
           )))))
 
-(defun TeXfrag-document (&rest _ignored)
-  "Process LaTeX fragments in the whole document.
-Any arguments are ignored."
+(defun TeXfrag-document ()
+  "Process LaTeX fragments in the whole document."
   (interactive)
   (funcall TeXfrag-preview-region-function (point-min) (point-max)))
 
@@ -670,17 +714,45 @@ and render LaTeX fragments in buffer."
 (add-hook 'eww-mode-hook #'TeXfrag-eww)
 (add-hook 'eww-after-render-hook #'TeXfrag-eww-set-LaTeX-file)
 
+(defun TeXfrag-fix-display-math (&optional b e)
+  "Insert line breaks around displayed math environments if necessary."
+  (save-excursion
+    (let ((end-marker (make-marker))
+	  (eq-end-marker (make-marker)))
+      (unwind-protect
+          (progn
+            (set-marker end-marker (or e (point-max)))
+            (goto-char (or b (point-min)))
+            (let (math)
+              (while (setq math (funcall TeXfrag-next-frag-function end-marker))
+		(when (eq 'display (nth 4 (nth 3 math)))
+		  (set-marker eq-end-marker (nth 1 math))
+		  (goto-char eq-end-marker)
+		  (unless (looking-at "[[:space:]]*$")
+		    (insert "\n"))
+		  (goto-char (nth 0 math))
+		  (unless (looking-back "^[[:space:]]*" (line-beginning-position))
+		    (insert "\n"))
+		  (goto-char eq-end-marker)
+		  ))))
+	(set-marker end-marker nil)))))
+
+(defun TeXfrag-sx-after-print (&rest _args)
+  "Set LaTeX formulas after printing of the stackexchange question is done.
+Can be used for advice of `sx-question-mode--print-question'
+or as `sx-question-mode-after-print-hook'."
+  (TeXfrag-fix-display-math)
+  (TeXfrag-document))
+
 (defun TeXfrag-sx ()
   "Preview TeX-fragments in stackexchange modes like `sx-question-mode'."
   (setq
    TeXfrag-comments-only nil
-   TeXfrag-frag-alist '(("\\$\\$" "\\$\\$" "$$" "$$")
-                        ("\\$" "\\$" "$" "$")
-                        ("\\\\\\[" "\\\\\\]" "\\\\[" "\\\\]")
-                        ("\\\\(" "\\\\)" "\\\\(" "\\\\)")
-                        ("\\\\begin{\\([a-z*]+\\)}" "\\\\end{\\1}" "\\\\begin{\\2}" "\\\\end{\\2}")))
+   TeXfrag-frag-alist TeXfrag-LaTeX-frag-alist)
   (TeXfrag-mode 1)
-  (advice-add #'sx-question-mode--print-question :after #'TeXfrag-document))
+  (if (special-variable-p 'sx-question-mode-after-print-hook)
+      (add-hook 'sx-question-mode-after-print-hook #'TeXfrag-sx-after-print)
+    (advice-add #'sx-question-mode--print-question :after #'TeXfrag-sx-after-print)))
 
 (add-hook 'sx-question-mode-hook #'TeXfrag-sx)
 
