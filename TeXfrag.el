@@ -4,6 +4,9 @@
 
 ;; Author: Tobias Zawada <i@tn-home.de>
 ;; Keywords: tex, languages, wp
+;; URL: https://github.com/TobiasZawada/TeXfrag
+;; Version: 0.1
+;; Package-Requires: ((emacs "25") (auctex "11.90.2"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -66,9 +69,9 @@
 ;; `TeXfrag-next-frag-function' (see the documentation of that variable).
 ;;
 
-;;; Requirements
-
-;; This library requires AucTeX with preview.el.
+;;; Requirements:
+;; - depends on Emacs "25" (because of when-let)
+;; - requires AUCTeX with preview.el.
 
 ;;; Code:
 
@@ -808,7 +811,8 @@ or as `sx-question-mode-after-print-hook'."
 (define-globalized-minor-mode TeXfrag-global-mode TeXfrag-mode
   (lambda ()
     (when (TeXfrag-find-setup-function)
-      (TeXfrag-mode))))
+      (TeXfrag-mode)))
+  :require 'TeXfrag)
 
 (provide 'TeXfrag)
 ;;; TeXfrag.el ends here
