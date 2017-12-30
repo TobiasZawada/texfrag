@@ -102,7 +102,7 @@
 (defgroup texfrag nil "Preview LaTeX fragments in buffers with non-LaTeX major modes."
   :group 'preview)
 
-(defcustom texfrag-preview-buffer-at-start t
+(defcustom texfrag-preview-buffer-at-start nil
   "Preview buffer at start of command `texfrag-mode' when non-nil."
   :group 'texfrag
   :type 'boolean)
