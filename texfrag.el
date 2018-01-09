@@ -146,7 +146,7 @@ If there is a collision with the major mode you can change this prefix in the ma
   :type 'key-sequence
   :group 'texfrag)
 
-(defcustom texfrag-eww-default-file-name '(make-temp-file "texfrag-eww" nil ".tex")
+(defcustom texfrag-eww-default-file-name '(make-temp-file "texfrag-eww")
   "LaTeX file name for TeX fragments in eww if the url is not a file:// url.
 This can be a file name or a sexp that generates the file name."
   :group 'texfrag
@@ -826,19 +826,12 @@ It differs from `texfrag-region' by skipping the text from buffer-beginning up t
         texfrag-frag-alist texfrag-LaTeX-frag-alist
         texfrag-preview-region-function #'texfrag-html-region-function))
 
-(require 'html+ nil t)
-
-(declare-function html+-eww-url-file-name "html+")
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; eww-mode
 
 (defun texfrag-eww-file-name ()
   "Retrieve file name from ‘eww-data’."
-  (or
-   (and (featurep 'html+)
-	(html+-eww-url-file-name))
-   (texfrag-file-name-option texfrag-eww-default-file-name)))
+  (texfrag-file-name-option texfrag-eww-default-file-name))
 
 (defun texfrag-eww ()
   "Texfrag setup for `eww-mode'."
