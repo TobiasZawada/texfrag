@@ -443,7 +443,7 @@ Returns nil if none of the args are numbers."
 		     (progn
 		       (parse-partial-sexp (point) (point-max) nil nil state 'syntax-table)
 		       (setq res (point))
-		       t)
+		       (null (eobp)))
                    nil))))
       res)))
 
