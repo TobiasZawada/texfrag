@@ -861,8 +861,9 @@ Set variable `texfrag-LaTeX-file' to the file name of the current eww window."
   "Set LaTeX formulas after printing of the stackexchange question is done.
 Can be used for advice of `sx-question-mode--print-question'
 or as `sx-question-mode-after-print-hook'."
-  (texfrag-fix-display-math)
-  (texfrag-document))
+  (when texfrag-mode ;;< if sx.el works with global advice
+    (texfrag-fix-display-math)
+    (texfrag-document)))
 
 (declare-function sx-question-mode--print-question
 		  "sx-question-print.el")
