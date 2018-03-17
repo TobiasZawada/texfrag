@@ -97,6 +97,14 @@
 ;; - depends on Emacs "25" (because of when-let)
 ;; - requires AUCTeX with preview.el.
 
+;;; Important changes
+;; Here we list changes that may have an impact on the user configuration.
+;;
+;; 2018-03-05:
+;; - `texfrag-header-function' is now called with `texfrag-source-buffer' as current buffer.
+;; - adopted LaTeX header generation from `org-latex-make-preamble'
+;;
+
 ;;; Code:
 
 (defgroup texfrag nil "Preview LaTeX fragments in buffers with non-LaTeX major modes."
@@ -146,6 +154,12 @@ If there is a collision with the major mode you can change this prefix in the ma
   :type 'key-sequence
   :group 'texfrag)
 
+
+(defcustom texfrag-poll-time 0.25
+  "Polling time for `texfrag-region-synchronously' in seconds."
+  :type 'numberp
+  :group 'texfrag)
+
 (defcustom texfrag-eww-default-file-name '(make-temp-file "texfrag-eww")
   "LaTeX file name for TeX fragments in eww if the url is not a file:// url.
 This can be a file name or a sexp that generates the file name."
@@ -157,7 +171,7 @@ This can be a file name or a sexp that generates the file name."
 This can be a file name or a sexp that generates the file name."
   :group 'texfrag
   :type '(choice file sexp))
-  
+
 (define-widget 'texfrag-regexp 'string
   "A regular expression."
   :match 'texfrag-widget-regexp-match
@@ -222,7 +236,7 @@ If VAL is a widget instead of a string (widget-value val) is tested."
 (defvar texfrag-header-function #'texfrag-header-default
   "Function that collects all LaTeX header contents from the current buffer.")
 
-(defvar texfrag-tail-function "\n\\end{document}"
+(defvar texfrag-tail-function "\n\\end{document}\n%%Local Variables:\n%%TeX-master: t\n%%End:\n"
   "String with the LaTeX tail or Function that collects all preview-LaTeX tail contents from the current buffer.")
 
 (defvar texfrag-next-frag-function #'texfrag-next-frag-default
@@ -265,8 +279,8 @@ Modify this variable in the major mode hook.")
 
 (defvar-local texfrag-frag-alist
   '(("\\\\f\\$" "\\\\f\\$" "$" "$" embedded)
-    ("\\\\f\\[" "\\\\f\\]" "\\[" "\\]" display)
-    ("\\\\f{\\([a-z]+[*]?\\)}{" "\\\\f}" "\\\\begin{\\2}" "\\\\end{\\2}" display) ;; e.g., \f{align*}{ some formula \f}
+    ("\\\\f\\[" "\\\\f\\]" "\\\\[" "\\\\]" display)
+    ("\\\\f{\\([a-z]+[*]?\\)}[{]?" "\\\\f}" "\\\\begin{\\2}" "\\\\end{\\2}" display) ;; e.g., \f{align*}{ some formula \f}
     )
   "Regular expressions for the beginning and the end of formulas.
 Override the default in the hook for the major mode.
@@ -277,10 +291,12 @@ Each equation-filter is a list of four strings and an optional flag.
 
 The first two strings are regular expressions and match the beginning and the end of an equation in the original buffer.
 The last two strings are the beginning and the end of the corresponding equation in the LaTeX buffer.
+They have the format of the NEWTEXT argument of `replace-match'.
+You need to escape the backslash character ?\\\\ and you can refer to groups as explained further below.
 
 If the optional flag equals the symbol display then this equation should be displayed on a separate line. It should be embedded otherwise.
 
-Capturing groups can be used in the first two regular expressions. These groups can be referred to in the last two strings.
+Capturing groups can be used in the first two regular expressions. These groups can be referred to in the last two replacement strings.
 The indexes for the captures are determined as match for the combined regular expression
 \\(beginning regexp\\)\\(end regexp\\).")
 
@@ -537,29 +553,56 @@ if it does not exist yet and MKDIR is non-nil."
       (mkdir subdir t))
     tex-path))
 
+(defvar-local texfrag-tex-buffer nil
+  "`texfrag-region' generates this buffer as a LaTeX target buffer.")
+
 (defvar-local texfrag-source-buffer nil
   "`texfrag-region' generates a LaTeX-buffer.
 This variable is the link back from the LaTeX-buffer to the source buffer.")
 
+(defmacro texfrag-with-source-buffer (&rest body)
+  "Run BODY in `texfrag-source-buffer'."
+  (declare (debug body))
+  `(progn
+     (cl-assert (buffer-live-p texfrag-source-buffer) nil
+                "TeXfrag source buffer %S not ready in LaTeX target buffer %S." texfrag-source-buffer (current-buffer))
+     (with-current-buffer texfrag-source-buffer
+       ,@body)))
+
+(defmacro texfrag-with-tex-buffer (&rest body)
+  "Run BODY in `texfrag-source-buffer'."
+  (declare (debug body))
+  `(progn
+     (cl-assert (buffer-live-p texfrag-tex-buffer) nil
+                "TeXfrag LaTeX buffer %S not ready in LaTeX target buffer %S." texfrag-tex-buffer (current-buffer))
+     (with-current-buffer texfrag-tex-buffer
+       ,@body)))
+
+(defvar-local texfrag-running nil
+  "Set in `texfrag-region' and reset in `texfrag-after-tex' in the source buffer.
+A non-nil value indicates that `preview-region' is running in the LaTeX target buffer.
+The actual value is the LaTeX target buffer.")
+
 (defun texfrag-after-tex ()
   "Buffer-local hook function for `texfrag-after-preview-hook'.
 It is used in LaTeX buffers generated by texfrag."
+  (texfrag-with-source-buffer
+   (setq texfrag-running nil))
   (cl-loop for ol being the overlays ;; ol is an overlay in the LaTeX buffer
-	   if (eq (overlay-get ol 'category) 'preview-overlay)
-	   do
-	   (when-let ((ol-src (get-text-property (overlay-start ol) 'texfrag-src))
-		      (buf-src (overlay-buffer ol-src))
-		      (b-src (overlay-start ol-src))
-		      (e-src (overlay-end ol-src))
-		      (str-src (with-current-buffer buf-src
-				 (buffer-substring-no-properties b-src e-src))))
-	     ;; The user might change the source string while LaTeX is running.
-	     ;; We don't generate overlays for those LaTeX fragments.
-	     (if (string= str-src (overlay-get ol-src 'texfrag-string))
-		 (move-overlay ol b-src e-src buf-src)
-	       (delete-overlay ol))
-	     (delete-overlay ol-src))
-	   ))
+           if (eq (overlay-get ol 'category) 'preview-overlay)
+           do
+           (when-let ((ol-src (get-text-property (overlay-start ol) 'texfrag-src))
+                      (buf-src (overlay-buffer ol-src))
+                      (b-src (overlay-start ol-src))
+                      (e-src (overlay-end ol-src))
+                      (str-src (with-current-buffer buf-src
+                                 (buffer-substring-no-properties b-src e-src))))
+             ;; The user might change the source string while LaTeX is running.
+             ;; We don't generate overlays for those LaTeX fragments.
+             (if (string= str-src (overlay-get ol-src 'texfrag-string))
+                 (move-overlay ol b-src e-src buf-src)
+               (delete-overlay ol))
+             (delete-overlay ol-src))))
 
 (defvar texfrag-after-preview-hook nil
   "Buffer-local hook run after the preview images have been created.
@@ -580,8 +623,27 @@ The current buffer is the one stored in variable `TeX-command-buffer'.")
 		  (equal (overlay-get ol 'category) 'preview-overlay))
 	   do (delete-overlay ol)))
 
+(defmacro texfrag-insert-tex-part (fun)
+  "Insert part of the TeX buffer described by FUN.
+FUN may be a function returning the string to be inserted
+or the string itself."
+  (declare (debug form))
+  `(insert (texfrag-with-source-buffer
+	    (cond
+	     ((stringp ,fun) ,fun)
+	     ((functionp ,fun) (funcall ,fun))
+	     (t
+	      (error "Unrecognized format of %s: %s" (quote ,fun) ,fun)
+	      )))))
+
 (defun texfrag-region (b e)
-  "Collect all LaTeX fragments in region from B to E in the latex target file."
+  "Collect all LaTeX fragments in region from B to E in the LaTeX target file.
+Thereby, the LaTeX target file is that one returned by `texfrag-LaTeX-file'.
+Afterwards start `preview-document' on the target file.
+The function `texfrag-after-tex' is hooked into `texfrag-after-preview-hook'
+which runs after `preview-document'.
+`texfrag-after-tex' transfers the preview images from the LaTeX target file buffer
+to the source buffer."
   (interactive "r")
   (cl-declare (special auto-insert-alist auto-insert))
   (let ((tex-path (texfrag-LaTeX-file t t))
@@ -591,7 +653,8 @@ The current buffer is the one stored in variable `TeX-command-buffer'.")
 	found
 	found-str) ; only non-nil if there are LaTeX-fragments in the document
     (let (auto-insert-alist auto-insert)
-      (setq tex-buf (find-file-noselect tex-path)))
+      (setq tex-buf (find-file-noselect tex-path)
+            texfrag-tex-buffer tex-buf))
     (texfrag-clearout-region b e)
     (save-excursion
       (goto-char b)
@@ -608,19 +671,90 @@ The current buffer is the one stored in variable `TeX-command-buffer'.")
 	  (with-current-buffer tex-buf
 	    (insert "\n" (propertize (nth 2 found) 'texfrag-src ol))))))
     ;;; end of tex-buf:
-    (when found-str ;; avoid error messages if no LaTeX fragments were found
-      (with-current-buffer tex-buf
-	(insert "\n\\end{document}\n%%Local Variables:\n%%TeX-master: t\n%%End:\n")
-	(goto-char (point-min))
-	(insert (funcall texfrag-header-function))
-	(setq-local texfrag-source-buffer src-buf)
-	(save-buffer)
-	(let (TeX-mode-hook LaTeX-mode-hook)
-	  (TeX-latex-mode)
-	  (add-hook 'texfrag-after-preview-hook #'texfrag-after-tex t t)
-	  (let ((preview-auto-cache-preamble t))
-	    (preview-document)
-	    ))))))
+    (if found-str ;; avoid error messages if no LaTeX fragments were found
+	(with-current-buffer tex-buf
+	  (message "Running texfrag with LaTeX target buffer %S and source buffer %S" tex-buf src-buf)
+	  (setq-local texfrag-source-buffer src-buf)
+	  (put 'texfrag-source-buffer 'permanent-local t)
+	  (texfrag-insert-tex-part texfrag-tail-function)
+	  (goto-char (point-min))
+	  (texfrag-insert-tex-part texfrag-header-function)
+	  (save-buffer)
+	  (let (TeX-mode-hook LaTeX-mode-hook)
+	    (TeX-latex-mode)
+	    (add-hook 'texfrag-after-preview-hook #'texfrag-after-tex t t)
+	    (with-current-buffer src-buf
+	      (setq texfrag-running tex-buf))
+	    (let ((preview-auto-cache-preamble t))
+	      (preview-document)
+	      )))
+      (setq texfrag-running nil))))
+
+(defun texfrag-ready-p (b e)
+  "Check whether the overlays in region from B to E are ready for use."
+  (cl-loop for ol being the overlays from b to e
+           unless (and (memq (overlay-get ol 'preview-state) '(active inactive))
+                       (null (overlay-get ol 'queued))
+                       (cdr (overlay-get ol 'preview-image)))
+           return nil
+           finally return t))
+
+(defmacro texfrag-while-not-quit-and (test seconds &rest body)
+  "While TEST is non-nil and SECONDS long quit is not sent run BODY.
+When the user presses a key other than \\C-g the event is available
+as let-bound variable EVENT in BODY.
+Returns t when it exits on \\C-g and nil when TEST evaluates to nil."
+  (declare (debug (sexp sexp body)) (indent 2))
+  ;; In cygwin emacs keyboard-quit does not work in a loop like
+  ;; (while running (sit-for SECONDS))
+  ;; waiting for a state flag set by a sentinel.
+  ;; Therfore we need this hack.
+  `(let ((inhibit-quit t) event)
+     (while (and ,test
+                 (null
+                  (eq (setq event (read-event "Press C-g to abort." nil ,seconds)) ?\C-g)))
+       ,@body)
+     (eq event ?\C-g)))
+
+;;;###autoload:
+(defun texfrag-region-synchronously (b e)
+  "Call `texfrag-region' on region from B to E synchronously.
+It waits for `texfrag-after-tex' to finish.
+Usage example:
+File content of \"test.org\":
+--8<------------------------------------------------------------------
+Start texfrag region.
+First TeX-fragment: \\\(z=\sqrt{x^2 + y^2}\\\)
+Second TeX-fragment: \\\(s(x) = \\int_0^x \\sqrt{1 + f'(\\bar x)^2}\\;d\\bar x\\\)
+Stop texfrag region.
+
+#+begin_src emacs-lisp :results silent
+ (preview-clearout-buffer)
+ (goto-char (point-min))
+ (texfrag-region-synchronously (point-min) (search-forward \"Stop texfrag region.\"))
+ (goto-char (point-min))
+ (search-forward \"\\\\(\"))
+ (let ((b (match-beginning 0)))
+   (message \"%S\" (overlays-at b)))
+#+end_src
+
+* Local Variables :noexport:
+Local Variables:
+mode: org
+eval: (texfrag-mode)
+read-only-mode: nil
+End:
+-->8------------------------------------------------------------------"
+  (interactive "r")
+  (texfrag-region b e)
+  (when (texfrag-while-not-quit-and texfrag-running texfrag-poll-time)
+    (keyboard-quit))
+  ;; preview-parse-message has run
+  ;; now we are waiting for (e.g.) preview-gs-close
+  ;; to convert the ps file into png images
+  ;; We can only check whether the images are prepared.
+  (when (texfrag-while-not-quit-and (null (texfrag-ready-p b e)) texfrag-poll-time)
+    (keyboard-quit)))
 
 (defvar-local texfrag-preview-region-function nil
   "A function registered here will override the behavior of `preview-region'.
@@ -704,7 +838,7 @@ Example:
 	(when texfrag-preview-buffer-at-start
 	  (preview-buffer)))
     (preview-clearout-document)))
-	
+
 (defun texfrag-global-mode-fun ()
   "Helper function for command `texfrag-global-mode'.
 Switch texfrag mode on if the major mode of the current buffer supports it."
@@ -784,12 +918,34 @@ Replaces &amp; with &, &lt; with <, and &gt; with >."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; org-mode
 
+(defvar org-preview-latex-default-process)
+(defvar org-preview-latex-process-alist)
+(defvar org-format-latex-header)
+(declare-function org-latex-make-preamble "org")
+(declare-function org-export-get-backend "org")
+(declare-function org-export-get-environment "org")
+
+(defun texfrag-org-header ()
+  ""
+  (require 'org)
+  (let* ((processing-type org-preview-latex-default-process)
+         (processing-info (assq processing-type org-preview-latex-process-alist)))
+    (concat (or (plist-get processing-info :latex-header)
+                (org-latex-make-preamble
+                 (org-export-get-environment (org-export-get-backend 'latex))
+                 org-format-latex-header
+                 'snippet))
+            "\n\\begin{document}\n")))
+
 (defun texfrag-org ()
   "Texfrag setup for `org-mode'."
   (setq texfrag-frag-alist
 	'(("\\$" "\\$" "$" "$")
-	  ("\\\\\\[" "\\\\\\]" "\\\\[" "\\\\]"))
-	texfrag-comments-only nil))
+          ("\\\\(" "\\\\)" "$" "$")
+	  ("\\\\\\[" "\\\\\\]" "\\\\[" "\\\\]")
+          ("\\\\begin{\\([a-z*]+\\)}" "\\\\end{\\1}" "\\\\begin{\\2}" "\\\\end{\\2}"))
+	texfrag-comments-only nil
+        texfrag-header-function #'texfrag-org-header))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; trac-wiki-mode
