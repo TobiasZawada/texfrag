@@ -1,0 +1,140 @@
+#+TITLE: Testing texfrag
+
+* Installation for testing
+  - These are installation instructions for developers.
+    If you just want to *use* ~texfrag~ you better install ~texfrag~ by ~package-install~ from ~melpa~.
+  - The most important use-case for testing is when you have modified ~texfrag~.
+  - For modifying the source code clone the repository https://github.com/TobiasZawada/texfrag/.
+    After testing your modifications you can send me a pull-request via github.
+  - The test is installed along with the sources when cloning the archive.
+
+* Running the test
+  - Start emacs with ~emacs -Q~.
+  - Run ~package-initialize~ to use your installed version of ~org-mode~.
+  - Load (and eval) the ~texfrag.el~ file from Section [[Installation for testing]].
+    That prevents the ~melpa~-version from being auto-loaded.
+  - Run the steps in Section [[Test]]
+
+* Test
+  - 
+
+* Test data
+#+LATEX_HEADER: \def\di{\operatorname{d}}\let\ph\varphi\def\I{\operatorname{i}}
+
+  This section contains some LaTeX fragments for testing with ~texfrag~.
+  The following test steps should work with ~texfrag-global-mode~ switched on
+  or by individually switching on ~texfrag-mode~ in the test buffers.
+** Org-mode
+   - Testing parenthesis fragments: The theorem of Pythagoras: \(z=\sqrt{x^2 + y^2}\).
+   - Testing dollar fragments: Einstein's formula of the photo-voltaic process: $E=h\cdot f$
+   - Testing bracket fragments: B-spline basis function
+     \[
+b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
+     \]
+   - Testing LaTeX environments: Cauchy's integral formula
+     \begin{align*}
+\frac1{2\pi\I}\oint_C \frac{f(z)}{z-z_0}\di z &= \lim_{r\downarrow0} \frac1{2\pi\I}\int_{\ph=0}^{2\pi} \frac{f(z_0+r\exp(\I\ph))}{r\exp(\I\ph)}r\exp(\I\ph) \I\di \ph\\
+&= f(z)
+     \end{align*}
+** TODO prog-mode
+   Version 0.2 of ~texfrag~ mode does not work correctly in the C++ source code edit buffer of org-babel.
+   Nevertheless it works in the tangled file.
+   That should be tested here as a regression test.
+   #+BEGIN_SRC C :tangle /tmp/test.c :results silent
+#include <stdio.h>
+/**
+   - Testing dollar fragments: Einstein's formula of the photo-voltaic process: \f$E=h\cdot f\f$
+   - Testing bracket fragments: B-spline basis function
+   \f[
+   b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
+   \f]
+   - Testing LaTeX environments: Cauchy's integral formula
+   \f{align*}
+   \frac1{2\pi i}\oint_C \frac{f(z)}{z-z_0}\;d z &= \lim_{r\downarrow0} \frac1{2\pi i}\int_{\varphi=0}^{2\pi} \frac{f(z_0+r\exp( i\varphi))}{r\exp( i\varphi)}r\exp( i\varphi)  i\;d \varphi\\
+   &= f(z)
+   \f}
+,*/
+int main() {
+	printf("Hello world.\n");
+	return 0;
+}
+   #+END_SRC
+
+   #+BEGIN_SRC C++ :tangle /tmp/test.cc :results silent
+#include <iostream>
+/**
+   - Testing dollar fragments: Einstein's formula of the photo-voltaic process: \f$E=h\cdot f\f$
+   - Testing bracket fragments: B-spline basis function
+   \f[
+   b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
+   \f]
+   - Testing LaTeX environments: Cauchy's integral formula
+   \f{align*}
+   \frac1{2\pi i}\oint_C \frac{f(z)}{z-z_0}\;d z &= \lim_{r\downarrow0} \frac1{2\pi i}\int_{\varphi=0}^{2\pi} \frac{f(z_0+r\exp( i\varphi))}{r\exp( i\varphi)}r\exp( i\varphi)  i\;d \varphi\\
+   &= f(z)
+   \f}
+,*/
+int main() {
+	std::out << "Hello world.\n";
+	return 0;
+}
+   #+END_SRC   
+
+   #+BEGIN_SRC emacs-lisp 
+;; Testing dollar fragments: Einstein's formula of the photo-voltaic process: \f$E=h\cdot f\f$
+;; Testing bracket fragments: B-spline basis function \f[ b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+ \f]
+;; Testing LaTeX environments: Cauchy's integral formula   \f{align*}   \frac1{2\pi i}\oint_C \frac{f(z)}{z-z_0}\;d z &= \lim_{r\downarrow0} \frac1{2\pi i}\int_{\varphi=0}^{2\pi} \frac{f(z_0+r\exp( i\varphi))}{r\exp( i\varphi)}r\exp( i\varphi)  i\;d \varphi\\   &= f(z)   \f}
+"Test finished"
+   #+END_SRC
+
+** eww
+
+   #+BEGIN_SRC html :tangle /tmp/test.html :results silent
+<!DOCTYPE html>
+<head>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-MML-AM_CHTML'>
+    MathJax.Hub.Config({
+    tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    processEscapes: true
+    }
+    });
+  </script>
+  <title>texfrag html test</title>
+</head>
+<body>
+  <h1>texfrag html test</h1>
+  <p>
+    MathJax test.
+    <ul>
+      <li>Testing parenthesis fragments: The theorem of Pythagoras: \(\def\di{\operatorname{d}}\def\ph{\varphi}\def\I{\operatorname{i}}z=\sqrt{x^2 + y^2}\).</li>
+      <li>Testing dollar fragments: Einstein's formula of the photo-voltaic process: $E=h\cdot f$</li>
+      <li>Testing bracket fragments: B-spline basis function
+	\[
+	b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
+	\]
+      </li>
+      <li>Testing LaTeX environments: Cauchy's integral formula
+	\begin{align*}
+	\frac1{2\pi\I}\oint_C \frac{f(z)}{z-z_0}\di z &= \lim_{r\downarrow0} \frac1{2\pi\I}\int_{\ph=0}^{2\pi} \frac{f(z_0+r\exp(\I\ph))}{r\exp(\I\ph)}r\exp(\I\ph) \I\di \ph\\
+	&= f(z)
+	\end{align*}
+      </li>
+    </ul>
+  </p>
+</body>
+   #+END_SRC
+
+** sx
+   You need ~sx~ to be installed from ~melpa~ to run this test.
+
+   - ~sx-tab-newest~ and choose ~math~
+   - Choose any ~math.stackexchange.org~ page that looks like it has many MathJax formulas in it.
+   - Display that page.
+
+* Local Vars :noexport:
+
+Local Variables:
+ispell-dictionary: "en_US"
+eval: (flyspell-mode)
+End:
