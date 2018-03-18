@@ -225,7 +225,6 @@ If VAL is a widget instead of a string (widget-value val) is tested."
                 (choice :tag "Equation type" (const display) (const embedded)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(require 'newcomment)
 (require 'tex-site nil t)
 (require 'preview nil t)
 (require 'cl-lib)
