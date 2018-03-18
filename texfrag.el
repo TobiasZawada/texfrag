@@ -552,6 +552,11 @@ if it does not exist yet and MKDIR is non-nil."
     ;; File names generated from buffer names of org source edit buffers can be pretty long.
     ;; Pityingly I had to note that the TeX toolchain including gs
     ;; does not work properly with file names longer than 72 characters.
+    ;; Version info:
+    ;; - Ubuntu 16.04.3 LTS
+    ;; - gs 9.18
+    ;; - pdfTeX 3.14159265-2.6-1.40.16 (TeX Live 2015/Debian)
+    ;; - kpathsea version 6.2.1
     ;; I do not know what exactly breaks with longer file names.
     ;; But, the next limitation avoids the error
     ;; LaTeX: No preview images found.
