@@ -1,11 +1,11 @@
 ;;; texfrag.el --- preview LaTeX fragments in alien major modes  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2017  Tobias Zawada
+;; Copyright (C) 2017-2018 Tobias Zawada
 
 ;; Author: Tobias Zawada <i@tn-home.de>
 ;; Keywords: tex, languages, wp
 ;; URL: https://github.com/TobiasZawada/texfrag
-;; Version: 0.1
+;; Version: 0.2
 ;; Package-Requires: ((emacs "25") (auctex "11.90.2"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -513,10 +513,10 @@ that generates the file name string."
 
 (defun texfrag-file-name-escape (name &optional re)
   "Replace chars in NAME that are not ASCII and do not match RE.
-RE is a regular expression defaulting to \"[^<>:\"/\\|?*]\".
+RE is a regular expression defaulting to \"[^]<>:\"/\\|?*+{}[]\".
 Relevant characters are replaced by _hex-number."
   (unless re
-    (setq re "[^<>:\"/\\|?*]"))
+    (setq re "[^]<>:\"/\\|?*+{}[]"))
   (mapconcat (lambda (char)
                (let ((str (char-to-string char)))
                  (if (and (/= char ?_)
