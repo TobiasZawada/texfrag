@@ -16,7 +16,11 @@
   - Run the steps in Section [[Test]]
 
 * Test
-  - 
+  - Currently all pre-release tests for ~texfrag.el~ are contained in this file.
+  - The tests should be carried out for both possible configurations of ~texfrag-preview-buffer-at-start~ (nil and non-nil).
+  - Furthermore, the manual activation of ~texfrag-mode~ and ~texfrag-global-mode~ should be tested.
+  - This file itself is a test.
+  - All sub-sections of [[Test data]] are tests. ~texfrag-mode~ should be tested for those cases in the org source edit buffer and in the tangled file.
 
 * Test data
 #+LATEX_HEADER: \def\di{\operatorname{d}}\let\ph\varphi\def\I{\operatorname{i}}
@@ -41,50 +45,50 @@ b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
    Nevertheless it works in the tangled file.
    That should be tested here as a regression test.
    #+BEGIN_SRC C :tangle /tmp/test.c :results silent
-#include <stdio.h>
-/**
-   - Testing dollar fragments: Einstein's formula of the photo-voltaic process: \f$E=h\cdot f\f$
-   - Testing bracket fragments: B-spline basis function
-   \f[
-   b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
-   \f]
-   - Testing LaTeX environments: Cauchy's integral formula
-   \f{align*}
-   \frac1{2\pi i}\oint_C \frac{f(z)}{z-z_0}\;d z &= \lim_{r\downarrow0} \frac1{2\pi i}\int_{\varphi=0}^{2\pi} \frac{f(z_0+r\exp( i\varphi))}{r\exp( i\varphi)}r\exp( i\varphi)  i\;d \varphi\\
-   &= f(z)
-   \f}
-,*/
-int main() {
-	printf("Hello world.\n");
-	return 0;
-}
+     #include <stdio.h>
+     /**
+	- Testing dollar fragments: Einstein's formula of the photo-voltaic process: \f$E=h\cdot f\f$
+	- Testing bracket fragments: B-spline basis function
+	\f[
+	b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
+	\f]
+	- Testing LaTeX environments: Cauchy's integral formula
+	\f{align*}
+	\frac1{2\pi i}\oint_C \frac{f(z)}{z-z_0}\;d z &= \lim_{r\downarrow0} \frac1{2\pi i}\int_{\varphi=0}^{2\pi} \frac{f(z_0+r\exp( i\varphi))}{r\exp( i\varphi)}r\exp( i\varphi)  i\;d \varphi\\
+	&= f(z)
+	\f}
+     ,*/
+     int main() {
+	     printf("Hello world.\n");
+	     return 0;
+     }
    #+END_SRC
 
    #+BEGIN_SRC C++ :tangle /tmp/test.cc :results silent
-#include <iostream>
-/**
-   - Testing dollar fragments: Einstein's formula of the photo-voltaic process: \f$E=h\cdot f\f$
-   - Testing bracket fragments: B-spline basis function
-   \f[
-   b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
-   \f]
-   - Testing LaTeX environments: Cauchy's integral formula
-   \f{align*}
-   \frac1{2\pi i}\oint_C \frac{f(z)}{z-z_0}\;d z &= \lim_{r\downarrow0} \frac1{2\pi i}\int_{\varphi=0}^{2\pi} \frac{f(z_0+r\exp( i\varphi))}{r\exp( i\varphi)}r\exp( i\varphi)  i\;d \varphi\\
-   &= f(z)
-   \f}
-,*/
-int main() {
-	std::out << "Hello world.\n";
-	return 0;
-}
+     #include <iostream>
+     /**
+	- Testing dollar fragments: Einstein's formula of the photo-voltaic process: \f$E=h\cdot f\f$
+	- Testing bracket fragments: B-spline basis function
+	\f[
+	b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
+	\f]
+	- Testing LaTeX environments: Cauchy's integral formula
+	\f{align*}
+	\frac1{2\pi i}\oint_C \frac{f(z)}{z-z_0}\;d z &= \lim_{r\downarrow0} \frac1{2\pi i}\int_{\varphi=0}^{2\pi} \frac{f(z_0+r\exp( i\varphi))}{r\exp( i\varphi)}r\exp( i\varphi)  i\;d \varphi\\
+	&= f(z)
+	\f}
+     ,*/
+     int main() {
+	     std::out << "Hello world.\n";
+	     return 0;
+     }
    #+END_SRC   
 
    #+BEGIN_SRC emacs-lisp 
-;; Testing dollar fragments: Einstein's formula of the photo-voltaic process: \f$E=h\cdot f\f$
-;; Testing bracket fragments: B-spline basis function \f[ b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+ \f]
-;; Testing LaTeX environments: Cauchy's integral formula   \f{align*}   \frac1{2\pi i}\oint_C \frac{f(z)}{z-z_0}\;d z &= \lim_{r\downarrow0} \frac1{2\pi i}\int_{\varphi=0}^{2\pi} \frac{f(z_0+r\exp( i\varphi))}{r\exp( i\varphi)}r\exp( i\varphi)  i\;d \varphi\\   &= f(z)   \f}
-"Test finished"
+     ;; Testing dollar fragments: Einstein's formula of the photo-voltaic process: \f$E=h\cdot f\f$
+     ;; Testing bracket fragments: B-spline basis function \f[ b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+ \f]
+     ;; Testing LaTeX environments: Cauchy's integral formula   \f{align*}   \frac1{2\pi i}\oint_C \frac{f(z)}{z-z_0}\;d z &= \lim_{r\downarrow0} \frac1{2\pi i}\int_{\varphi=0}^{2\pi} \frac{f(z_0+r\exp( i\varphi))}{r\exp( i\varphi)}r\exp( i\varphi)  i\;d \varphi\\   &= f(z)   \f}
+     "Test finished"
    #+END_SRC
 
 ** eww
