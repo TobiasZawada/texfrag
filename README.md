@@ -21,6 +21,10 @@ region and for the full document.
 The usual key-sequences from AUCTeX such as `C-c C-p C-p` for _Toggle preview at point_
 are also available.
 
+### Examples
+Single line equation:
+To preveiw the formula `\vec{x}\cdot \mathbf{A} = \lambda \vec{x}` simply wrap it in `\f$ \f$`, so we would write `\f$  \mathbf{A} \cdot \vec{x} = \lambda \vec{x}\f$` and then run the preview command. For multi-line equations, we use $\f[ \f]$ instead.
+
 ## Supported major modes
 At the time of writing the list of supported major modes is:
  - `html-mode`
