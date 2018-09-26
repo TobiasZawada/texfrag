@@ -4,6 +4,7 @@
 
 ;; Author: Tobias Zawada <i@tn-home.de>
 ;; Keywords: tex, languages, wp
+;; Package-Version: 20180318.1647
 ;; URL: https://github.com/TobiasZawada/texfrag
 ;; Version: 0.2
 ;; Package-Requires: ((emacs "25") (auctex "11.90.2"))
@@ -136,8 +137,7 @@ setup function."
   "\\documentclass{article}
 \\usepackage{amsmath,amsfonts}
 \\usepackage[utf8]{inputenc}
-\\usepackage[T1]{fontenc}
-\\begin{document}"
+\\usepackage[T1]{fontenc}"
   "LaTeX header inserted by the function `texfrag-header-default' into the LaTeX buffer."
   :group 'texfrag
   :type 'string)
@@ -228,6 +228,17 @@ If VAL is a widget instead of a string (widget-value val) is tested."
                 (string :tag "Replacement of end in LaTeX buffer")
                 (choice :tag "Equation type" (const display) (const embedded)))))
 
+(defcustom texfrag-org-class-options ""
+  "LaTeX class options for texfrag in orgmode.
+Defaults to the empty string.  Should include the enclosing brackets."
+  :type 'string
+  :group 'texfrag)
+
+(defcustom texfrag-org-add-to-header ""
+  "LaTeX commands added between `org-format-latex-header' and \\begin{document}."
+  :type 'string
+  :group 'texfrag)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (require 'tex-site nil t)
 (require 'preview nil t)
@@ -290,9 +301,13 @@ Override the default in the hook for the major mode.
 The default works for some LaTeX fragments in doxygen.
 
 The value is a list of equation-filters.
-Each equation-filter is a list of four strings and an optional flag.
+Each equation-filter is a list of two matchers, two replacement strings, and an optional flag.
+The first matcher can be a regular expression string matching the beginning of a formula
+or a list with the regular expression string as its first element and a function
+as its second element. The function returns non-nil if the match really starts a LaTeX fragment.
+The second matcher can only be regular expression.
 
-The first two strings are regular expressions and match the beginning and the end of an equation in the original buffer.
+The regular expressions of the first two matchers match the beginning and the end of an equation in the original buffer.
 The last two strings are the beginning and the end of the corresponding equation in the LaTeX buffer.
 They have the format of the NEWTEXT argument of `replace-match'.
 You need to escape the backslash character ?\\\\ and you can refer to groups as explained further below.
@@ -362,32 +377,52 @@ returns the result of
 	      args (cddr args))))
     (cons 0 (cons offset ret))))
 
+(defun texfrag-regexp-begin (frag)
+  "Extract the beginning regexp from FRAG.
+FRAG is a LaTeX fragment entry in `texfrag-frag-alist'."
+  (while (consp frag) ;; regular expression
+    (setq frag (car frag)))
+  frag)
+
 (defun texfrag-next-frag-default (bound)
   "Search for the next LaTeX fragment in region from `point' to BOUND.
 See the documentation of `texfrag-next-frag-function'
 for further details about the argument and the return value."
-  (let ((re-b (concat (mapconcat 'car texfrag-frag-alist "\\|"))))
-    (when (re-search-forward re-b bound t)
+  (let ((re-b (concat (mapconcat #'texfrag-regexp-begin
+				 texfrag-frag-alist "\\|")))
+	found)
+    (while (and (re-search-forward re-b bound t)
+		(null found))
       (let* ((bOuter (match-beginning 0))
              (bInner (point))
              (bStr (match-string 0))
-             (matchList (cl-assoc bStr texfrag-frag-alist :test (lambda (key candidate) (string-match candidate key))))
-             (bMatches (match-data))
-	     (e-re (texfrag-combine-regexps (nth 1 matchList) bMatches bStr))
-             (eOuter (re-search-forward e-re nil t))
-             (eInner (match-beginning 0))
-             (eStr (match-string 0)) ;; for consistency
-             (eMatches (progn (string-match e-re eStr) (match-data))) ;; for consistency
-             (cStr (concat bStr eStr)) ;; combined string
-             (cMatches (texfrag-combine-match-data bStr bMatches eStr eMatches))
-             )
-	(cl-assert eOuter nil "LaTeX fragment beginning at %d with %s not closed." bOuter bStr)
-        (set-match-data cMatches)
-        (list bOuter eOuter
-              (concat (replace-match (nth 2 matchList) nil nil cStr)
-                      (funcall texfrag-equation-filter (buffer-substring-no-properties bInner eInner))
-                      (replace-match (nth 3 matchList) nil nil cStr))
-	      matchList)))))
+             (matchList (cl-assoc bStr texfrag-frag-alist
+				  :test
+				  (lambda (key candidate)
+				    (string-match
+				     (texfrag-regexp-begin candidate)
+				     key)))))
+	(when (or (stringp (car matchList))
+		  (funcall (cadar matchList)))
+	  (setq found
+		(let*
+		    ((bMatches (match-data))
+		     (e-re (texfrag-combine-regexps (nth 1 matchList) bMatches bStr))
+		     (eOuter (re-search-forward e-re nil t))
+		     (eInner (match-beginning 0))
+		     (eStr (match-string 0)) ;; for consistency
+		     (eMatches (progn (string-match e-re eStr) (match-data))) ;; for consistency
+		     (cStr (concat bStr eStr)) ;; combined string
+		     (cMatches (texfrag-combine-match-data bStr bMatches eStr eMatches))
+		     )
+		  (cl-assert eOuter nil "LaTeX fragment beginning at %d with %s not closed." bOuter bStr)
+		  (set-match-data cMatches)
+		  (list bOuter eOuter
+			(concat (replace-match (nth 2 matchList) nil nil cStr)
+				(funcall texfrag-equation-filter (buffer-substring-no-properties bInner eInner))
+				(replace-match (nth 3 matchList) nil nil cStr))
+			matchList))))))
+    found))
 
 (defun texfrag-previous-frag-default (bound)
   "Search for the next LaTeX fragment in the region from `point' to BOUND.
@@ -400,7 +435,7 @@ for further details about the argument and the return value."
              (eStr (match-string 0))
              (matchList (cl-rassoc eStr texfrag-frag-alist :test (lambda (key candidate) (string-match (car candidate) key))))
 	     (eMatches (match-data))
-             (bOuter (re-search-backward (car matchList) nil t))
+             (bOuter (re-search-backward (texfrag-regexp-begin matchList) nil t))
              (bInner (match-end 0))
 	     (bStr (match-string 0))
 	     (bMatches (progn (string-match (car matchList) bStr) (match-data)))
@@ -529,11 +564,12 @@ Relevant characters are replaced by _hex-number."
                    (format "_%0.2X" char))))
                name ""))
 
-(defun texfrag-LaTeX-file (&optional absolute mkdir)
+(defun texfrag-LaTeX-file (&optional absolute mkdir prv-dir)
   "Return name of LaTeX file corresponding to the current buffers source file.
 Return the absolute file name if ABSOLUTE is non-nil.
 Create the directory of the LaTeX file (inclusive parent directories)
-if it does not exist yet and MKDIR is non-nil."
+if it does not exist yet and MKDIR is non-nil.
+Return the preview directory instead of the LaTeX file name if PRV-DIR is non-nil."
   (let* ((default-directory (or (and texfrag-LaTeX-file (file-name-directory texfrag-LaTeX-file))
                                 default-directory))
          (subdir (directory-file-name texfrag-subdir))
@@ -562,17 +598,29 @@ if it does not exist yet and MKDIR is non-nil."
     ;; for org source edit buffers.
     (when (> (length tex-file) texfrag-LaTeX-max-file-name-length)
       (setq tex-file (substring tex-file 0 texfrag-LaTeX-max-file-name-length)))
+    (let ((ext (file-name-extension tex-file)))
+      (when (and ext (assoc-string ext TeX-file-extensions))
+        (setq tex-file (concat tex-file "-"))))
     (setq tex-file (concat tex-file
 			   (unless (and (stringp tex-file)
 					(string-suffix-p "." tex-file))
 			     ".")
-			   TeX-default-extension))
-    (setq tex-path (concat subdir "/" tex-file))
+                           (if prv-dir
+                               "prv"
+                               TeX-default-extension)))
+    (setq tex-path (expand-file-name tex-file subdir))
     (when absolute
       (setq tex-path (expand-file-name tex-path)))
     (unless (and mkdir (file-directory-p subdir))
       (mkdir subdir t))
     tex-path))
+
+(defun texfrag-preview-dir (&optional buf absolute mkdir)
+  "Return preview directory for the LaTeX file with texfrags for BUF.
+ABSOLUTE and MKDIR have the same meaning as for `texfrag-LaTeX-file'.
+BUF defaults to `current-buffer'."
+  (with-current-buffer (or buf (current-buffer))
+    (texfrag-LaTeX-file absolute mkdir t)))
 
 (defvar-local texfrag-tex-buffer nil
   "`texfrag-region' generates this buffer as a LaTeX target buffer.")
@@ -673,7 +721,8 @@ from the LaTeX target file buffer to the source buffer."
         (coding-sys (or coding-system-for-write buffer-file-coding-system))
 	tex-buf
 	found
-	found-str) ; only non-nil if there are LaTeX-fragments in the document
+	found-str
+	(texfrag-preview-scale preview-scale)) ; only non-nil if there are LaTeX-fragments in the document
     (let (auto-insert-alist auto-insert)
       (setq tex-buf (find-file-noselect tex-path)
             texfrag-tex-buffer tex-buf))
@@ -701,6 +750,7 @@ from the LaTeX target file buffer to the source buffer."
 	  (texfrag-insert-tex-part texfrag-tail-function)
 	  (goto-char (point-min))
 	  (texfrag-insert-tex-part texfrag-header-function)
+          (texfrag-insert-tex-part "\n\\begin{document}")
 	  (save-buffer)
 	  (let (TeX-mode-hook LaTeX-mode-hook)
 	    (TeX-latex-mode)
@@ -708,6 +758,7 @@ from the LaTeX target file buffer to the source buffer."
 	    (with-current-buffer src-buf
 	      (setq texfrag-running tex-buf))
 	    (let ((preview-auto-cache-preamble t))
+	      (setq preview-scale texfrag-preview-scale)
 	      (preview-document)
 	      )))
       (setq texfrag-running nil))))
@@ -953,23 +1004,82 @@ Replaces &amp; with &, &lt; with <, and &gt; with >."
   "Generate LaTeX header for org-files."
   (require 'org)
   (let* ((processing-type org-preview-latex-default-process)
-         (processing-info (assq processing-type org-preview-latex-process-alist)))
-    (concat (or (plist-get processing-info :latex-header)
-                (org-latex-make-preamble
-                 (org-export-get-environment (org-export-get-backend 'latex))
-                 org-format-latex-header
-                 'snippet))
-            "\n\\begin{document}\n")))
+         (processing-info (assq processing-type org-preview-latex-process-alist))
+         (latex-header org-format-latex-header)
+         (my-class-opts texfrag-org-class-options))
+    (when (string-match "[[:space:]]*\\[\\(.*\\)\\][[:space:]]*" my-class-opts)
+      (setq my-class-opts (match-string 1 my-class-opts)))
+    (when (and
+           (null (string-empty-p my-class-opts))
+           (string-match "\\\\documentclass\\(\\[.*\\]\\)?{" latex-header))
+      (let ((opts (match-string 1 latex-header)))
+        (setq latex-header
+              (if opts
+                  (replace-match
+                   (concat (substring opts nil -1) "," my-class-opts "]")
+                   nil t latex-header 1)
+                (replace-match
+                 (format "\\documentclass[%s]{" my-class-opts)
+                 nil t latex-header)))))
+    (when (stringp texfrag-org-add-to-header)
+      (setq latex-header (concat latex-header
+                                 texfrag-org-add-to-header)))
+    (or (plist-get processing-info :latex-header)
+        (org-latex-make-preamble
+         (org-export-get-environment (org-export-get-backend 'latex))
+         latex-header
+         'snippet))))
+
+(defun texfrag-org-latex-p ()
+  "Return non-nil if point is in a LaTeX formula of an org document.
+Formulas can be LaTeX fragments or LaTeX environments."
+  (memq (org-element-type
+	 (save-match-data
+	   (org-element-context)))
+	'(latex-fragment latex-environment)))
+
+(defvar org-html-with-latex)
 
 (defun texfrag-org ()
   "Texfrag setup for `org-mode'."
   (setq texfrag-frag-alist
-	'(("\\$" "\\$" "$" "$")
-          ("\\\\(" "\\\\)" "$" "$")
-	  ("\\\\\\[" "\\\\\\]" "\\\\[" "\\\\]")
-          ("\\\\begin{\\([a-z*]+\\)}" "\\\\end{\\1}" "\\\\begin{\\2}" "\\\\end{\\2}"))
+	'((("\\$" texfrag-org-latex-p) "\\$" "$" "$")
+          (("\\\\(" texfrag-org-latex-p) "\\\\)" "$" "$")
+	  (("\\\\\\[" texfrag-org-latex-p) "\\\\\\]" "\\\\[" "\\\\]")
+          (("\\\\begin{\\([a-z*]+\\)}" texfrag-org-latex-p) "\\\\end{\\1}" "\\\\begin{\\2}" "\\\\end{\\2}"))
 	texfrag-comments-only nil
-        texfrag-header-function #'texfrag-org-header))
+        texfrag-header-function #'texfrag-org-header
+        org-html-with-latex 'dvipng) ;; Export of LaTeX formulas as embedded formulas only works this way.
+  )
+
+(defcustom texfrag-org-keep-minor-modes 'texfrag
+  "Let `org-mode' restore minor modes after restart.
+Possible values:
+'texfrag : preserve `texfrag-mode' only
+t: preserve as many minor modes as possible
+nil: dont preserve any minor modes"
+  :type '(choice (item texfrag) (item t) (item nil))
+  :group 'texfrag)
+
+(defun texfrag-org-keep-minor-modes (oldfun &rest args)
+  "Call OLDFUN with ARGS but remember active minor modes and restart them."
+  (let ((active-minor-modes
+	 (case texfrag-org-keep-minor-modes
+	   (texfrag
+	    (and texfrag-mode 'texfrag-mode))
+	   (t
+	    (cl-remove-if-not
+	     (lambda (minor-mode)
+	       (unless (string-match "\\(\\`\\|-\\)global-" (symbol-name minor-mode))
+		 (and (boundp minor-mode)
+		      (symbol-value minor-mode))))
+	     minor-mode-list)))))
+    (apply oldfun args)
+    (dolist (minor-mode active-minor-modes)
+      (unless (symbol-value minor-mode)
+	(funcall minor-mode)))))
+
+(advice-add 'org-mode-restart :around #'texfrag-org-keep-minor-modes)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; trac-wiki-mode
