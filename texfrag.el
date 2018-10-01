@@ -4,7 +4,6 @@
 
 ;; Author: Tobias Zawada <i@tn-home.de>
 ;; Keywords: tex, languages, wp
-;; Package-Version: 20180318.1647
 ;; URL: https://github.com/TobiasZawada/texfrag
 ;; Version: 0.2
 ;; Package-Requires: ((emacs "25") (auctex "11.90.2"))
@@ -1066,7 +1065,7 @@ nil: dont preserve any minor modes"
   (let ((active-minor-modes
 	 (case texfrag-org-keep-minor-modes
 	   (texfrag
-	    (and texfrag-mode 'texfrag-mode))
+	    (and texfrag-mode '(texfrag-mode)))
 	   (t
 	    (cl-remove-if-not
 	     (lambda (minor-mode)
