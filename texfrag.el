@@ -56,7 +56,7 @@
 ;;  1. Derive your major mode from one of the already supported major modes
 ;;     (see doc of variable `texfrag-setup-alist').
 ;;     You do not need to do anything beyond that if your major mode does not
-;;     change the marks for LaTeX equations (e.g., "\f$" for LaTeX equations
+;;     change the marks for LaTeX equations (e.g., "\f$...\f$" for LaTeX equations
 ;;     in doxygen comments for `prog-mode').
 ;;
 ;;  2. Add a setup function to `texfrag-setup-alist' (see the doc for that variable).
@@ -616,7 +616,7 @@ Return the preview directory instead of the LaTeX file name if PRV-DIR is non-ni
 
 (defun texfrag-preview-dir (&optional buf absolute mkdir)
   "Return preview directory for the LaTeX file with texfrags for BUF.
-ABSOLUTE and MKDIR have the same meaning as for `texfrag-LaTeX-file'.
+ABSOLUTE and MKDIR have the same meaning as for function `texfrag-LaTeX-file'.
 BUF defaults to `current-buffer'."
   (with-current-buffer (or buf (current-buffer))
     (texfrag-LaTeX-file absolute mkdir t)))
@@ -913,11 +913,32 @@ Example:
 	  (preview-buffer)))
     (preview-clearout-document)))
 
+(defvar texfrag-global-mode-inhibit nil
+  "Inhibit call of function `texfrag-mode' through `texfrag-global-mode-fun'.
+Background:
+See `define-globalized-minor-mode'.
+There MODE stands for symbol `texfrag-global-mode'.
+MODE-cmhh is put into `change-major-mode-hook'.
+That function **adds** the current buffer to variable MODE-buffers.
+If `texfrag-preview-buffer-at-start' is enabled a LaTeX buffer is created
+in the middle of MODE-enable-in-buffers.
+Therefore `change-major-mode-hook' runs again, but the source buffer is still
+in the list MODE-buffers.
+So `texfrag-global-mode-fun' runs kind of recursively for the source buffer.
+
+This variable prevents that function `texfrag-mode' is run twice
+for the source buffer.")
+
 (defun texfrag-global-mode-fun ()
   "Helper function for command `texfrag-global-mode'.
 Switch texfrag mode on if the major mode of the current buffer supports it."
-  (when (texfrag-find-setup-function)
-    (texfrag-mode)))
+  (when (and
+	 (null texfrag-global-mode-inhibit)
+	 (null texfrag-mode)
+	 (null texfrag-source-buffer)
+	 (texfrag-find-setup-function))
+    (let ((texfrag-global-mode-inhibit t))
+      (texfrag-mode))))
 
 ;;;###autoload
 (define-global-minor-mode texfrag-global-mode texfrag-mode
@@ -1054,7 +1075,7 @@ Formulas can be LaTeX fragments or LaTeX environments."
 (defcustom texfrag-org-keep-minor-modes 'texfrag
   "Let `org-mode' restore minor modes after restart.
 Possible values:
-'texfrag : preserve `texfrag-mode' only
+'texfrag : preserve option `texfrag-mode' only
 t: preserve as many minor modes as possible
 nil: dont preserve any minor modes"
   :type '(choice (item texfrag) (item t) (item nil))
