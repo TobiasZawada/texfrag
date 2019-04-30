@@ -93,40 +93,49 @@ b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
 
 ** eww
 
-   #+BEGIN_SRC html :tangle /tmp/test.html :results silent
-<!DOCTYPE html>
-<head>
-  <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-MML-AM_CHTML'>
-    MathJax.Hub.Config({
-    tex2jax: {
-    inlineMath: [['$','$'], ['\\(','\\)']],
-    processEscapes: true
-    }
-    });
-  </script>
-  <title>texfrag html test</title>
-</head>
-<body>
-  <h1>texfrag html test</h1>
-  <p>
-    MathJax test.
-    <ul>
-      <li>Testing parenthesis fragments: The theorem of Pythagoras: \(\def\di{\operatorname{d}}\def\ph{\varphi}\def\I{\operatorname{i}}z=\sqrt{x^2 + y^2}\).</li>
-      <li>Testing dollar fragments: Einstein's formula of the photo-voltaic process: $E=h\cdot f$</li>
-      <li>Testing bracket fragments: B-spline basis function
-	\[
-	b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
-	\]
-      </li>
-      <li>Testing LaTeX environments: Cauchy's integral formula
-	\begin{align*}
-	\frac1{2\pi\I}\oint_C \frac{f(z)}{z-z_0}\di z &= \lim_{r\downarrow0} \frac1{2\pi\I}\int_{\ph=0}^{2\pi} \frac{f(z_0+r\exp(\I\ph))}{r\exp(\I\ph)}r\exp(\I\ph) \I\di \ph\\
-	&= f(z)
-	\end{align*}
-      </li>
-    </ul>
-  </p>
-</body>
+#+BEGIN_SRC svg :tangle /tmp/test.svg :results silent
+<?xml version="1.0" standalone="no"?>
+
+<svg viewBox="0 0 480 150" style="background-color:#ffffff00" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" x="0px" y="0px" width="480" height="150">
+    <path d="M 0 35.5 L 6.5 22.5 L 16 37 L 23 24 L 34.8 43.7 L 42.5 30 L 50.3 47 L 59.7 27.7 L 69 47 L 85 17.7 L 98.3 39 L 113 9.7 L 127.7 42.3 L 136.3 23.7 L 147 44.3 L 158.3 20.3 L 170.3 40.3 L 177.7 25.7 L 189.7 43 L 199.7 21 L 207.7 35 L 219 11 L 233 37 L 240.3 23.7 L 251 43 L 263 18.3 L 272.7 33.3 L 283 10 L 295 32.3 L 301.3 23 L 311.7 37 L 323.7 7.7 L 339.3 39 L 346.3 25.7 L 356.3 42.3 L 369.7 15 L 376.3 25.7 L 384 9 L 393 28.3 L 400.3 19 L 411.7 38.3 L 421 21 L 434.3 43 L 445 25 L 453 36.3 L 464.3 18.3 L 476.2 40.3 L 480 33.5 L 480 215 L 0 215 L 0 35.5 Z" fill="#175720"/>
+</svg>
+#+END_SRC
+
+#+BEGIN_SRC html :tangle /tmp/test.html :results silent
+  <!DOCTYPE html>
+  <head>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-MML-AM_CHTML'>
+      MathJax.Hub.Config({
+      tex2jax: {
+      inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true
+      }
+      });
+    </script>
+    <title>texfrag html test</title>
+  </head>
+  <body>
+    <h1>texfrag html test</h1>
+    <p>Testing replacement of images in <code>html-mode</code> with the following example from <a href="https://stackoverflow.com/q/30445508/2708138">How minimal can an SVG be?</a>: <img src="test.svg" />.</p>
+    <p>
+      MathJax test.
+      <ul>
+	<li>Testing parenthesis fragments: The theorem of Pythagoras: \(\def\di{\operatorname{d}}\def\ph{\varphi}\def\I{\operatorname{i}}z=\sqrt{x^2 + y^2}\).</li>
+	<li>Testing dollar fragments: Einstein's formula of the photo-voltaic process: $E=h\cdot f$</li>
+	<li>Testing bracket fragments: B-spline basis function
+	  \[
+	  b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
+	  \]
+	</li>
+	<li>Testing LaTeX environments: Cauchy's integral formula
+	  \begin{align*}
+	  \frac1{2\pi\I}\oint_C \frac{f(z)}{z-z_0}\di z &= \lim_{r\downarrow0} \frac1{2\pi\I}\int_{\ph=0}^{2\pi} \frac{f(z_0+r\exp(\I\ph))}{r\exp(\I\ph)}r\exp(\I\ph) \I\di \ph\\
+	  &= f(z)
+	  \end{align*}
+	</li>
+      </ul>
+    </p>
+  </body>
    #+END_SRC
 
 Second html document for testing with eww:
