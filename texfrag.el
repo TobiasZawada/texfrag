@@ -390,8 +390,8 @@ for further details about the argument and the return value."
   (let ((re-b (concat (mapconcat #'texfrag-regexp-begin
 				 texfrag-frag-alist "\\|")))
 	found)
-    (while (and (re-search-forward re-b bound t)
-		(null found))
+    (while (and (null found)
+		(re-search-forward re-b bound t))
       (let* ((bOuter (match-beginning 0))
              (bInner (point))
              (bStr (match-string 0))
