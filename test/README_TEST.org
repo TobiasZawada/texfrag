@@ -140,39 +140,39 @@ b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
 
 Second html document for testing with eww:
    #+BEGIN_SRC html :tangle /tmp/test1.html :results silent
-<!DOCTYPE html>
-<head>
-  <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-MML-AM_CHTML'>
-    MathJax.Hub.Config({
-    tex2jax: {
-    inlineMath: [['$','$'], ['\\(','\\)']],
-    processEscapes: true
-    }
-    });
-  </script>
-  <title>Second texfrag html test for eww</title>
-</head>
-<body>
-  <h1>Second texfrag html test for eww</h1>
-  <p>
-    MathJax test.
-    <ul>
-      <li>Testing parenthesis fragments: The theorem of Pythagoras: \(\def\di{\operatorname{d}}\def\ph{\varphi}\def\I{\operatorname{i}}Z=\sqrt{X^2 + Y^2}\).</li>
-      <li>Testing dollar fragments: Einstein's formula of the photo-voltaic process: $E\;=\;h\cdot f$</li>
-      <li>Testing bracket fragments: B-spline basis function
-	\[
-	b(\xi) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-\xi)^d_+
-	\]
-      </li>
-      <li>Testing LaTeX environments: Cauchy's integral formula
-	\begin{align*}
-	\frac1{2\pi\I}\oint_C \frac{f(Z)}{Z-z_0}\di Z &= \lim_{r\downarrow0} \frac1{2\pi\I}\int_{\ph=0}^{2\pi} \frac{f(z_0+r\exp(\I\ph))}{r\exp(\I\ph)}r\exp(\I\ph) \I\di \ph\\
-	&= f(z)
-	\end{align*}
-      </li>
-    </ul>
-  </p>
-</body>
+     <!DOCTYPE html>
+     <head>
+       <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-MML-AM_CHTML'>
+	 MathJax.Hub.Config({
+	 tex2jax: {
+	 inlineMath: [['$','$'], ['\\(','\\)']],
+	 processEscapes: true
+	 }
+	 });
+       </script>
+       <title>Second texfrag html test for eww</title>
+     </head>
+     <body>
+       <h1>Second texfrag html test for eww</h1>
+       <p>
+	 MathJax test.
+	 <ul>
+	   <li>Testing parenthesis fragments: The theorem of Pythagoras: \(\def\di{\operatorname{d}}\def\ph{\varphi}\def\I{\operatorname{i}}Z=\sqrt{X^2 + Y^2}\).</li>
+	   <li>Testing dollar fragments: Einstein's formula of the photo-voltaic process: $E\;=\;h\cdot f$</li>
+	   <li>Testing bracket fragments: B-spline basis function
+	     \[
+	     b(\xi) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-\xi)^d_+
+	     \]
+	   </li>
+	   <li>Testing LaTeX environments: Cauchy's integral formula
+	     \begin{align*}
+	     \frac1{2\pi\I}\oint_C \frac{f(Z)}{Z-z_0}\di Z &= \lim_{r\downarrow0} \frac1{2\pi\I}\int_{\ph=0}^{2\pi} \frac{f(z_0+r\exp(\I\ph))}{r\exp(\I\ph)}r\exp(\I\ph) \I\di \ph\\
+	     &= f(z)
+	     \end{align*}
+	   </li>
+	 </ul>
+       </p>
+     </body>
    #+END_SRC
 
 
