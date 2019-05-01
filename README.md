@@ -47,13 +47,13 @@ Please, inspect the help of the variable `texfrag-setup-alist` for a complete li
 
 ## Known issues
 
-- texfrag-global-mode does not switch on texfrag-mode for eww
+- DONE texfrag-global-mode does not switch on texfrag-mode for eww
   #13 opened 2 minutes ago by TobiasZawada
-- sx: equation end with $$ is misinterpreted as new equation beginning
+- DONE sx: equation end with $$ is misinterpreted as new equation beginning
   #12 opened 7 hours ago by TobiasZawada
-- LaTeX does not accept the UTF8 Byte Order Mark.
+- DONE LaTeX does not accept the UTF8 Byte Order Mark.
   #11 opened 8 hours ago by TobiasZawada
-- Query whether LaTeX should be killed at opening text with `texfrag-global-mode` and `texfrag-preview-buffer-at-start` turned on.
+- DONE Query whether LaTeX should be killed at opening text with `texfrag-global-mode` and `texfrag-preview-buffer-at-start` turned on.
   #10 opened a day ago by TobiasZawada
-- TeXfrag leaves LaTeX buffers and output buffers open.
+- DONE TeXfrag leaves LaTeX buffers and output buffers open.
   #9 opened 14 days ago by TobiasZawada 
