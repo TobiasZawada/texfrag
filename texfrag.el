@@ -5,7 +5,7 @@
 ;; Author: Tobias Zawada <i@tn-home.de>
 ;; Keywords: tex, languages, wp
 ;; URL: https://github.com/TobiasZawada/texfrag
-;; Version: 0.2
+;; Version: 1.0
 ;; Package-Requires: ((emacs "25") (auctex "11.90.2"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -104,7 +104,11 @@
 ;; - `texfrag-header-function' is now called with `texfrag-source-buffer' as current buffer.
 ;; - adopted LaTeX header generation from `org-latex-make-preamble'
 ;;
-
+;; 2019-05-04:
+;; - `texfrag-region' for `texfrag-preview-buffer-at-start' has been moved to `post-command-hook'
+;;   That is an important step to make `texfrag-preview-buffer-at-start' really work.
+;;   (No repeated LaTeX processing on the same document within one command.)
+;; - This version of texfrag is tagged 1.0.
 ;;; Code:
 
 (defgroup texfrag nil "Preview LaTeX fragments in buffers with non-LaTeX major modes."
@@ -163,7 +167,7 @@ If there is a collision with the major mode you can change this prefix in the ma
   :type 'numberp
   :group 'texfrag)
 
-(defcustom texfrag-eww-default-file-name '(make-temp-file "texfrag-eww")
+(defcustom texfrag-eww-default-file-name '(make-temp-file "texfrag-eww" nil ".tex")
   "LaTeX file name for TeX fragments in eww if the url is not a file:// url.
 This can be a file name or a sexp that generates the file name."
   :group 'texfrag
@@ -188,12 +192,8 @@ This can be a file name or a sexp that generates the file name."
   "Customization type for `texfrag-frag-alist'.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defvar-local texfrag-preview-buffer-at-start-done nil
-  "Set to t if `texfrag-region' is run in function `texfrag-mode'.
-Protection against repeated execution of `texfrag-region'
-through function `texfrag-mode' with non-nil `texfrag-preview-buffer-at-start'
-in the case of derived modes.")
+(defvar texfrag-inhibit nil
+  "Inhibit call of function `texfrag-mode' through `texfrag-global-mode-fun'.")
 
 (define-widget 'texfrag-regexp 'string
   "A regular expression."
@@ -606,20 +606,24 @@ Return the absolute file name if ABSOLUTE is non-nil.
 Create the directory of the LaTeX file (inclusive parent directories)
 if it does not exist yet and MKDIR is non-nil.
 Return the preview directory instead of the LaTeX file name if PRV-DIR is non-nil."
-  (let* ((default-directory (or (and texfrag-LaTeX-file (file-name-directory texfrag-LaTeX-file))
-                                default-directory))
-         (subdir (directory-file-name texfrag-subdir))
-         (file (and texfrag-LaTeX-file (file-name-nondirectory texfrag-LaTeX-file)))
-         (tex-file
-          (texfrag-file-name-escape
-	   (or (and
-		file
-		(null (string-empty-p file))
-		file)
-	       (file-name-nondirectory
-		(or (buffer-file-name)
-		    (buffer-name))))))
-	 tex-path)
+  (let* ((tex-path (or texfrag-LaTeX-file
+		       (and (buffer-live-p texfrag-tex-buffer)
+			    (buffer-file-name texfrag-tex-buffer))))
+	 (tex-dir (or (and tex-path (file-name-directory tex-path))
+		      (if (file-writable-p default-directory)
+                          (directory-file-name (expand-file-name texfrag-subdir))
+			(unless mkdir
+			  (user-error "Default directory is write protected and tex-path is not allowed to create a temporary directory"))
+			(make-temp-file (concat "texfrag-"
+						(substring (buffer-name)
+							   nil
+							   (min
+							    (- texfrag-LaTeX-max-file-name-length 20) ;; Leave space for the appended random characters.
+							    (length (buffer-name)))
+							   )
+						"-")
+					t))))
+         (tex-file (and tex-path (file-name-nondirectory tex-path))))
     ;; File names generated from buffer names of org source edit buffers can be pretty long.
     ;; Pityingly I had to note that the TeX toolchain including gs
     ;; does not work properly with file names longer than 72 characters.
@@ -632,24 +636,30 @@ Return the preview directory instead of the LaTeX file name if PRV-DIR is non-ni
     ;; But, the next limitation avoids the error
     ;; LaTeX: No preview images found.
     ;; for org source edit buffers.
-    (when (> (length tex-file) texfrag-LaTeX-max-file-name-length)
-      (setq tex-file (substring tex-file 0 texfrag-LaTeX-max-file-name-length)))
-    (let ((ext (file-name-extension tex-file)))
-      (when (and ext (assoc-string ext TeX-file-extensions))
-        (setq tex-file (concat tex-file "-"))))
-    (setq tex-file (concat tex-file
-			   (unless (and (stringp tex-file)
-					(string-suffix-p "." tex-file))
-			     ".")
-                           (if prv-dir
-                               "prv"
-                               TeX-default-extension)))
-    (setq tex-path (expand-file-name tex-file subdir))
-    (when absolute
-      (setq tex-path (expand-file-name tex-path)))
-    (unless (and mkdir (file-directory-p subdir))
-      (mkdir subdir t))
-    tex-path))
+    (unless (and
+	     tex-file
+	     (null (string-empty-p tex-file)))
+      (setq tex-file (texfrag-file-name-escape
+		      (file-name-nondirectory
+		       (or (buffer-file-name)
+			   (buffer-name)))))
+      (when (> (length tex-file) texfrag-LaTeX-max-file-name-length)
+	(setq tex-file (substring tex-file 0 texfrag-LaTeX-max-file-name-length)))
+      (let ((ext (file-name-extension tex-file)))
+	(when (and ext (assoc-string ext TeX-file-extensions))
+          (setq tex-file (concat tex-file "-"))))
+      (setq tex-file (concat tex-file
+			     (unless (and (stringp tex-file)
+					  (string-suffix-p "." tex-file))
+			       ".")
+                             (if prv-dir
+				 "prv"
+                               TeX-default-extension))))
+    (when (and mkdir (null (file-directory-p tex-dir)))
+      (mkdir tex-dir t))
+    (if absolute
+	(expand-file-name tex-file tex-dir)
+      tex-file)))
 
 (defun texfrag-preview-dir (&optional buf absolute mkdir)
   "Return preview directory for the LaTeX file with texfrags for BUF.
@@ -798,7 +808,9 @@ B defaults to `point-min' and E defaults to `point-max'."
   (cl-declare (special auto-insert-alist auto-insert))
   (unless b (setq b (point-min)))
   (unless e (setq e (point-max)))
-  (let ((tex-path (texfrag-LaTeX-file t t))
+  (let ((make-backup-files nil)
+	(texfrag-inhibit t)
+	(tex-path (texfrag-LaTeX-file t t))
 		(src-buf (current-buffer))
         (coding-sys (intern-soft ;; LaTeX does not accept a byte order mark:
 					 (replace-regexp-in-string
@@ -849,7 +861,8 @@ B defaults to `point-min' and E defaults to `point-max'."
 	    (texfrag-insert-tex-part texfrag-header-function)
             (texfrag-insert-tex-part "\n\\begin{document}")
 	    (save-buffer)
-	    (let (TeX-mode-hook LaTeX-mode-hook)
+	    (let (TeX-mode-hook
+		  LaTeX-mode-hook) ;; Don't activate texfrag-mode in style buffers (Elisp files).
 	      (TeX-latex-mode)
 	      (add-hook 'texfrag-after-preview-hook #'texfrag-after-tex t t)
 	      (with-current-buffer src-buf
@@ -990,6 +1003,23 @@ Example:
      mode
      (car-safe (cl-rassoc-if (lambda (modes) (member mode modes)) texfrag-setup-alist)))))
 
+;; What `define-globalized-minor-mode' does:
+;; Function `texfrag-global-mode-cmhh' is registered in `change-major-mode-hook'.
+;; It temporarily registers `texfrag-global-mode-enable-in-buffers' in `post-command-hook'.
+;; Function `texfrag-global-mode-enable-in-buffers' calls
+;; for all buffers in `texfrag-global-mode-buffers'
+;; first (texfrag-mode -1) and (texfrag-global-mode-fun) afterwards.
+;; All hooks are registered globally in `define-globalized-minor-mode'.
+;; We can exploit that and register our stuff buffer locally to ensure that it really runs last.
+;; ==>>
+;; If `texfrag-preview-buffer-at-start' is non-nil we put
+;; texfrag-buffer at the end of post-command-hook
+;; via `texfrag-post-command-preview'.
+(defun texfrag-post-command-preview ()
+  "Deregister me from `post-command-hook' and run `texfrag-region' for the full buffer."
+  (remove-hook 'post-command-hook #'texfrag-post-command-preview t)
+  (texfrag-region (point-min) (point-max)))
+
 ;;;###autoload
 (define-minor-mode texfrag-mode
   "Preview LaTeX fragments in current buffer with the help of the
@@ -1001,51 +1031,38 @@ Example:
     (when setup-function
       (funcall setup-function)))
   (if texfrag-mode
-      (progn
+      (let ((texfrag-inhibit t))
+	;; (message "Switching on texfrag-mode for buffer %S" (current-buffer))
+	;; (backtrace-message)
         (unless texfrag-preview-region-function
           (setq texfrag-preview-region-function #'texfrag-region))
 	(define-key texfrag-mode-map texfrag-prefix texfrag-submap)
 	(LaTeX-preview-setup)
 	(preview-mode-setup)
-	(when (and texfrag-preview-buffer-at-start
-		   ;; Protect against multiple activation in derived major modes:
-		   (null texfrag-preview-buffer-at-start-done))
-	  (preview-buffer)
-	  (setq texfrag-preview-buffer-at-start-done t))
+	(when texfrag-preview-buffer-at-start
+	  ;; Protect against multiple activation in derived major modes:
+	  (add-hook 'post-command-hook #'texfrag-post-command-preview t t))
 	(add-hook 'kill-buffer-hook #'texfrag-cleanup nil t)
-	(add-hook 'change-major-mode-hook #'texfrag-cleanup nil t))
-    (texfrag-cleanup)
-    (setq texfrag-preview-buffer-at-start-done nil)
+	(add-hook 'change-major-mode-hook #'texfrag-cleanup nil t)
+	)
+    ;; (message "Switching off texfrag-mode for buffer %S" (current-buffer))
+    ;; (backtrace-message)
+    ;; (texfrag-cleanup)
     (remove-hook 'kill-buffer-hook #'texfrag-cleanup t)
     (remove-hook 'change-major-mode-hook #'texfrag-cleanup t)
     (preview-clearout-document)))
-
-(defvar texfrag-global-mode-inhibit nil
-  "Inhibit call of function `texfrag-mode' through `texfrag-global-mode-fun'.
-Background:
-See `define-globalized-minor-mode'.
-There MODE stands for symbol `texfrag-global-mode'.
-MODE-cmhh is put into `change-major-mode-hook'.
-That function **adds** the current buffer to variable MODE-buffers.
-If `texfrag-preview-buffer-at-start' is enabled a LaTeX buffer is created
-in the middle of MODE-enable-in-buffers.
-Therefore `change-major-mode-hook' runs again, but the source buffer is still
-in the list MODE-buffers.
-So `texfrag-global-mode-fun' runs kind of recursively for the source buffer.
-
-This variable prevents that function `texfrag-mode' is run twice
-for the source buffer.")
 
 (defun texfrag-global-mode-fun ()
   "Helper function for command `texfrag-global-mode'.
 Switch texfrag mode on if the major mode of the current buffer supports it."
   (when (and
-	 (null texfrag-global-mode-inhibit)
+	 (null texfrag-inhibit)
 	 (null texfrag-mode)
 	 (null texfrag-source-buffer)
 	 (texfrag-find-setup-function))
-    (let ((texfrag-global-mode-inhibit t))
-      (texfrag-mode))))
+    ;; Note: Function `texfrag-mode' inhibits `texfrag-global-mode'
+    ;; during execution.
+    (texfrag-mode)))
 
 ;;;###autoload
 (define-global-minor-mode texfrag-global-mode texfrag-mode
@@ -1310,6 +1327,7 @@ Set variable `texfrag-LaTeX-file' to the file name of the current eww window."
 Can be used for advice of `sx-question-mode--print-question'
 or as `sx-question-mode-after-print-hook'."
   (when texfrag-mode ;;< if sx.el works with global advice
+    (remove-hook 'post-command-hook #'texfrag-post-command-preview t) ;; Don't preview twice if texfrag-preview-buffer-at-start is non-nil.
     (texfrag-fix-display-math)
     (texfrag-document)))
 
