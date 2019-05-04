@@ -92,7 +92,7 @@ b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
    #+END_SRC
 
 ** eww
-External link for testing texfrag with eww: https://github.com/TobiasZawada/texfrag/test/README_TEST.org
+External link for testing texfrag with eww: https://github.com/TobiasZawada/texfrag/blob/master/test/README_TEST.org
 
 #+BEGIN_SRC svg :tangle /tmp/test.svg :results silent
 <?xml version="1.0" standalone="no"?>
