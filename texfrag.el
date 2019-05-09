@@ -4,8 +4,8 @@
 
 ;; Author: Tobias Zawada <i@tn-home.de>
 ;; Keywords: tex, languages, wp
+;; Package-Version: 1.0.1
 ;; URL: https://github.com/TobiasZawada/texfrag
-;; Version: 1.0
 ;; Package-Requires: ((emacs "25") (auctex "11.90.2"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -693,6 +693,22 @@ This variable is the link back from the LaTeX-buffer to the source buffer.")
      (with-current-buffer texfrag-tex-buffer
        ,@body)))
 
+(defmacro texfrag-match-transformed-eqn (match)
+  "Get the transformed equation entry from return value MATCH of `texfrag-next-frag-function'."
+  `(nth 2 ,match))
+
+(defmacro texfrag-match-frag (match)
+  "Get FRAG entry from return value MATCH of `texfrag-next-frag-function'."
+  `(nth 3 ,match))
+
+(defmacro texfrag-frag-plist (frag)
+  "Get the property list in entry FRAG of `texfrag-frag-alist'."
+  `(nthcdr 4 ,frag))
+
+(defmacro texfrag-match-plist (match)
+  "Get the property list in the FRAG entry of MATCH."
+  `(texfrag-frag-plist (texfrag-match-frag ,match)))
+
 (defvar-local texfrag-running nil
   "Set in `texfrag-region' and reset in `texfrag-after-tex' in the source buffer.
 A non-nil value indicates that `preview-region' is running in the LaTeX target buffer.
@@ -1089,22 +1105,6 @@ B and E are the boundaries of the region to be processed."
   (interactive)
   (TeX-recenter-output-buffer nil))
 
-(defmacro texfrag-match-transformed-eqn (match)
-  "Get the transformed equation entry from return value MATCH of `texfrag-next-frag-function'."
-  `(nth 2 ,match))
-
-(defmacro texfrag-match-frag (match)
-  "Get FRAG entry from return value MATCH of `texfrag-next-frag-function'."
-  `(nth 3 ,match))
-
-(defmacro texfrag-frag-plist (frag)
-  "Get the property list in entry FRAG of `texfrag-frag-alist'."
-  `(nthcdr 4 ,frag))
-
-(defmacro texfrag-match-plist (match)
-  "Get the property list in the FRAG entry of MATCH."
-  `(texfrag-frag-plist (texfrag-match-frag ,match)))
-
 (defun texfrag-fix-display-math (&optional b e)
   "Insert line breaks around displayed math environments in region from B to E."
   (save-excursion
@@ -1164,6 +1164,8 @@ Replaces &amp; with &, &lt; with <, and &gt; with >."
 (declare-function org-latex-make-preamble "org")
 (declare-function org-export-get-backend "org")
 (declare-function org-export-get-environment "org")
+(declare-function org-element-type "org-element")
+(declare-function org-element-context "org-element")
 
 (defun texfrag-org-header ()
   "Generate LaTeX header for org-files."
@@ -1198,6 +1200,7 @@ Replaces &amp; with &, &lt; with <, and &gt; with >."
 (defun texfrag-org-latex-p ()
   "Return non-nil if point is in a LaTeX formula of an org document.
 Formulas can be LaTeX fragments or LaTeX environments."
+  (require 'org-element)
   (memq (org-element-type
 	 (save-match-data
 	   (org-element-context)))
@@ -1229,7 +1232,7 @@ nil: dont preserve any minor modes"
 (defun texfrag-org-keep-minor-modes (oldfun &rest args)
   "Call OLDFUN with ARGS but remember active minor modes and restart them."
   (let ((active-minor-modes
-	 (case texfrag-org-keep-minor-modes
+	 (cl-case texfrag-org-keep-minor-modes
 	   (texfrag
 	    (and texfrag-mode '(texfrag-mode)))
 	   (t
