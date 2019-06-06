@@ -40,6 +40,10 @@ b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
 \frac1{2\pi\I}\oint_C \frac{f(z)}{z-z_0}\di z &= \lim_{r\downarrow0} \frac1{2\pi\I}\int_{\ph=0}^{2\pi} \frac{f(z_0+r\exp(\I\ph))}{r\exp(\I\ph)}r\exp(\I\ph) \I\di \ph\\
 &= f(z)
      \end{align*}
+   - Testing double dollar display formulas:
+     $$
+     \oint_{\partial G} \vec E \cdot d\vec r = -\int_{G} \dot{\vec B}\cdot d\vec{A}
+     $$
 ** TODO prog-mode
    Version 0.2 of ~texfrag~ mode does not work correctly in the C++ source code edit buffer of org-babel.
    Nevertheless it works in the tangled file.
