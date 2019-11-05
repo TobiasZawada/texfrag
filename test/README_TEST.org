@@ -9,10 +9,10 @@
   - The test is installed along with the sources when cloning the archive.
 
 * Running the test
-  - Start emacs with ~emacs -Q~.
-  - Run ~package-initialize~ to use your installed version of ~org-mode~.
-  - Load (and eval) the ~texfrag.el~ file from Section [[Installation for testing]].
-    That prevents the ~melpa~-version from being auto-loaded.
+  - Start emacs with the following command in the top-level directory of the ~texfrag~ working copy:
+    #+BEGIN_SRC shell
+emacs -Q --debug-init --eval '(package-initialize)' -l texfrag.el
+    #+END_SRC
   - Run the steps in Section [[Test]]
 
 * Test

@@ -1036,6 +1036,8 @@ Example:
   (remove-hook 'post-command-hook #'texfrag-post-command-preview t)
   (texfrag-region (point-min) (point-max)))
 
+(defvar texfrag-global-show-last-mode) ;;< forward declaration
+
 ;;;###autoload
 (define-minor-mode texfrag-mode
   "Preview LaTeX fragments in current buffer with the help of the
@@ -1060,6 +1062,8 @@ Example:
 	  (add-hook 'post-command-hook #'texfrag-post-command-preview t t))
 	(add-hook 'kill-buffer-hook #'texfrag-cleanup nil t)
 	(add-hook 'change-major-mode-hook #'texfrag-cleanup nil t)
+	(when texfrag-global-show-last-mode
+	  (texfrag-show-last-mode))
 	)
     ;; (message "Switching off texfrag-mode for buffer %S" (current-buffer))
     ;; (backtrace-message)
@@ -1299,6 +1303,23 @@ It differs from `texfrag-region' by skipping the text from buffer-beginning up t
   "Retrieve file name from ‘eww-data’."
   (texfrag-file-name-option texfrag-eww-default-file-name))
 
+(defvar texfrag-eww-restore-history-functions nil
+  "Functions run after `eww-restore-history' with its ELEM arg.")
+
+(defun texfrag-eww-restore-history-ad (elem)
+  "After advice for `eww-restore-history'.
+It runs `texfrag-eww-reload-redisplay-hook' with arg ELEM."
+  (run-hook-with-args 'texfrag-eww-restore-history-functions elem))
+
+(eval-after-load "eww"
+  (lambda ()
+    (advice-add 'eww-restore-history :after #'texfrag-eww-restore-history-ad)))
+
+(defun texfrag-eww-restore-history-fun (elem)
+  "Run `texfrag-eww-set-LaTeX-file' if ELEM has nonempty :text property."
+  (when (plist-get elem :text)
+    (texfrag-eww-set-LaTeX-file)))
+
 (defun texfrag-eww ()
   "Texfrag setup for `eww-mode'."
   (if texfrag-mode
@@ -1310,8 +1331,10 @@ It differs from `texfrag-region' by skipping the text from buffer-beginning up t
 				   ("\\\\\\[" "\\\\\\]" "\\\\[" "\\\\]")
 				   ("\\\\(" "\\\\)" "\\\\(" "\\\\)")
 				   ("\\\\begin{\\([a-z*]+\\)}" "\\\\end{\\1}" "\\\\begin{\\2}" "\\\\end{\\2}")))
-	(add-hook 'eww-after-render-hook #'texfrag-eww-set-LaTeX-file nil t))
-    (remove-hook 'eww-after-render-hook #'texfrag-eww-set-LaTeX-file t)))
+	(add-hook 'eww-after-render-hook #'texfrag-eww-set-LaTeX-file nil t)
+	(add-hook 'texfrag-eww-restore-history-functions #'texfrag-eww-restore-history-fun nil t))
+    (remove-hook 'eww-after-render-hook #'texfrag-eww-set-LaTeX-file t)
+    (remove-hook 'texfrag-eww-restore-history-functions #'texfrag-eww-restore-history-fun t)))
 
 (defun texfrag-eww-set-LaTeX-file ()
   "Render LaTeX fragments in the current eww buffer.
@@ -1363,6 +1386,76 @@ or as `sx-question-mode-after-print-hook'."
   (texfrag-region (point-min) (point-max)))
 
 (easy-menu-add-item texfrag-mode-map '(menu-bar TeX) ["Set Preview Scale" texfrag-scale t])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defvar preview-icon)
+
+(defun texfrag-set-overlay-icon (ol &optional icon)
+  "Set preview ICON of overlay OL.
+ICON defaults to the preview image."
+  (when-let ((img (car (overlay-get ol 'preview-image)))
+	     (strings (overlay-get ol 'strings))
+	     (str (seq-copy (cdr strings)))
+	     (props (text-properties-at 0 str)))
+    (plist-put props 'display (or icon img))
+    (set-text-properties 0 1 props str)
+    (setcdr strings str)))
+
+(define-minor-mode texfrag-show-last-mode
+  "Show the last preview image instead of the placeholder symbol."
+  :lighter ""
+  (save-excursion
+    (save-restriction
+      (widen)
+      (let ((icon (and (null texfrag-show-last-mode) preview-icon)))
+	(dolist (ol (overlays-in (point-min) (point-max)))
+	  (texfrag-set-overlay-icon ol icon))))))
+
+(defun texfrag-show-last-inactive-string (fun ov)
+  "Show last preview when editing source code.
+This is an around advice for `preview-inactive-string' as FUN with arg OV."
+  (if (and texfrag-show-last-mode
+	   (overlay-get ov 'preview-state))
+      (let ((preview-icon (or (car-safe (overlay-get ov 'preview-image)) preview-icon)))
+	(overlay-put ov 'texfrag-last-image preview-icon)
+	(funcall fun ov))
+    (funcall fun ov)))
+
+(advice-add 'preview-inactive-string :around #'texfrag-show-last-inactive-string)
+
+(defun texfrag-show-last-disabled-string (fun ov)
+  "Show last preview when editing source code.
+This is an around advice for `preview-disabled-string' as FUN with arg OV."
+  (if (and texfrag-show-last-mode
+	   (overlay-get ov 'preview-state))
+      (let ((preview-icon (or (overlay-get ov 'texfrag-last-image) preview-icon)))
+	(funcall fun ov))
+    (funcall fun ov)))
+
+(advice-add 'preview-disabled-string :around #'texfrag-show-last-disabled-string)
+
+(defun texfrag-show-last-mode-turn-on ()
+  "Turn on `texfrag-show-last-mode' in LaTeX and texfrag buffers."
+  (when (or (derived-mode-p 'tex-mode)
+	    texfrag-mode)
+    (texfrag-show-last-mode)))
+
+(define-globalized-minor-mode
+  texfrag-global-show-last-mode
+  texfrag-show-last-mode
+  texfrag-show-last-mode-turn-on)
+
+(easy-menu-add-item texfrag-mode-map '(menu-bar TeX) ["Show Last Preview When Editing" (texfrag-show-last-mode 'toggle) :enable t :style toggle :selected texfrag-show-last-mode])
+
+(defun texfrag-show-last--preview-menu ()
+  "Add `texfrag-show-last-mode' entry to `preview-menu'."
+  (when (and
+	 (boundp 'preview-menu)
+	 (keymapp preview-menu))
+    (easy-menu-add-item preview-menu nil ["Show Last Preview When Editing" (texfrag-show-last-mode 'toggle) :enable t :style toggle :selected texfrag-show-last-mode] "Read documentation")))
+
+(add-hook 'LaTeX-mode-hook #'texfrag-show-last--preview-menu)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
