@@ -1055,6 +1055,7 @@ Example:
         (unless texfrag-preview-region-function
           (setq texfrag-preview-region-function #'texfrag-region))
 	(define-key texfrag-mode-map texfrag-prefix texfrag-submap)
+	(require 'tex-mode)
 	(LaTeX-preview-setup)
 	(preview-mode-setup)
 	(when texfrag-preview-buffer-at-start
