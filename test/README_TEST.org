@@ -32,9 +32,7 @@ emacs -Q --debug-init --eval '(package-initialize)' -l texfrag.el
    - Testing parenthesis fragments: The theorem of Pythagoras: \(z=\sqrt{x^2 + y^2}\).
    - Testing dollar fragments: Einstein's formula of the photo-voltaic process: $E=h\cdot f$
    - Testing bracket fragments: B-spline basis function
-     \[
-b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
-     \]
+     \[b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+\]
    - Testing LaTeX environments: Cauchy's integral formula
      \begin{align*}
 \frac1{2\pi\I}\oint_C \frac{f(z)}{z-z_0}\di z &= \lim_{r\downarrow0} \frac1{2\pi\I}\int_{\ph=0}^{2\pi} \frac{f(z_0+r\exp(\I\ph))}{r\exp(\I\ph)}r\exp(\I\ph) \I\di \ph\\

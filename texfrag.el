@@ -109,6 +109,16 @@
 ;;   That is an important step to make `texfrag-preview-buffer-at-start' really work.
 ;;   (No repeated LaTeX processing on the same document within one command.)
 ;; - This version of texfrag is tagged 1.0.
+;;
+;; 2019-11-29:
+;; - Let TeXfrag scale the images according to `text-scale-mode'.
+;; - That is actually like a bugfix for `preview.el'.  In the original version of preview
+;;   the function registered at `preview-scale-function' is run in the TeX process buffer and not in
+;;   the associated LaTeX source buffer.  The newly registered function `texfrag-scale-from-face'
+;;   switches to `TeX-command-buffer' (which is actually the source buffer) before it
+;;   calculates the scaling factor.  In that way the settings in the source buffer are taken into account.
+;;   Added the scaling factor `texfrag-scale'.  You can use that factor to scale all preview images up.
+;;
 ;;; Code:
 
 (defgroup texfrag nil "Preview LaTeX fragments in buffers with non-LaTeX major modes."
@@ -252,6 +262,12 @@ Defaults to the empty string.  Should include the enclosing brackets."
   :type 'string
   :group 'texfrag)
 
+(defcustom texfrag-scale 1.0
+  "Additional scaling factor for preview images."
+  :type 'float
+  :group 'texfrag
+  :safe #'numberp)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (require 'tex-site nil t)
 (require 'preview nil t)
@@ -259,6 +275,7 @@ Defaults to the empty string.  Should include the enclosing brackets."
 (require 'tex-site)
 (require 'tex)
 (require 'subr-x)
+(require 'face-remap) ;;< `text-scale-mode'
 
 (defvar-local texfrag-header-function #'texfrag-header-default
   "Function that collects all LaTeX header contents from the current buffer.")
@@ -810,6 +827,25 @@ assuming that img is already an image."
       (warn "Cannot find image file %S" img)))
   ov)
 
+(defun texfrag-scale-from-face ()
+  "Compute `preview-scale' from face like `preview-scale-from-face'.
+But take `text-scale-mode-amount' into account."
+  ;; The original version `preview-scale-from-face'
+  ;; is called with the TeX process buffer active.
+  ;; But, we want the images be scaled like the font in `TeX-command-buffer'!
+  `(lambda ()
+     (with-current-buffer (or (and (buffer-live-p TeX-command-buffer)
+				   TeX-command-buffer)
+			      (current-buffer))
+       (* (funcall ,(preview-scale-from-face))
+	  texfrag-scale
+	  (expt text-scale-mode-step
+		text-scale-mode-amount)))))
+
+(defvar auto-insert-alist)
+(defvar auto-insert)
+(defvar texfrag--text-scale-mode-step)
+(defvar text-scale-mode-step)
 (defun texfrag-region (&optional b e)
   "Collect LaTeX fragments in region from B to E in the LaTeX target file.
 Thereby, the LaTeX target file is that one returned by
@@ -821,7 +857,6 @@ which runs after `preview-document'.
 from the LaTeX target file buffer to the source buffer.
 B defaults to `point-min' and E defaults to `point-max'."
   (interactive "r")
-  (cl-declare (special auto-insert-alist auto-insert))
   (unless b (setq b (point-min)))
   (unless e (setq e (point-max)))
   (let ((make-backup-files nil)
@@ -835,7 +870,9 @@ B defaults to `point-min' and E defaults to `point-max'."
 		tex-buf
 		found
 		found-str
-		(texfrag-preview-scale preview-scale)) ; only non-nil if there are LaTeX-fragments in the document
+		(texfrag--scale texfrag-scale)
+		(texfrag--preview-scale-function preview-scale-function)
+		(texfrag--text-scale-mode-amount text-scale-mode-amount))
     (let (auto-insert-alist auto-insert)
       (setq tex-buf (find-file-noselect tex-path)
             texfrag-tex-buffer tex-buf))
@@ -884,7 +921,9 @@ B defaults to `point-min' and E defaults to `point-max'."
 	      (with-current-buffer src-buf
 		(setq texfrag-running tex-buf))
 	      (let ((preview-auto-cache-preamble t))
-		(setq preview-scale texfrag-preview-scale)
+		(setq texfrag-scale texfrag--scale
+		      preview-scale-function texfrag--preview-scale-function
+		      text-scale-mode-amount texfrag--text-scale-mode-amount)
 		(preview-document)
 		))))
       (setq texfrag-running nil))))
@@ -1058,6 +1097,7 @@ Example:
 	(require 'tex-mode)
 	(LaTeX-preview-setup)
 	(preview-mode-setup)
+	(setq-local preview-scale-function #'texfrag-scale-from-face)
 	(when texfrag-preview-buffer-at-start
 	  ;; Protect against multiple activation in derived major modes:
 	  (add-hook 'post-command-hook #'texfrag-post-command-preview t t))
@@ -1383,7 +1423,7 @@ or as `sx-question-mode-after-print-hook'."
 (defun texfrag-scale (scale)
   "Set SCALE factor for `preview-scale'."
   (interactive "nScale Factor:")
-  (setq-local preview-scale scale)
+  (setq-local texfrag-scale scale)
   (texfrag-region (point-min) (point-max)))
 
 (easy-menu-add-item texfrag-mode-map '(menu-bar TeX) ["Set Preview Scale" texfrag-scale t])
