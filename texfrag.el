@@ -931,6 +931,9 @@ B defaults to `point-min' and E defaults to `point-max'."
 (defun texfrag-ready-p (b e)
   "Check whether the overlays in region from B to E are ready for use."
   (cl-loop for ol being the overlays from b to e
+	   when (and (overlay-buffer ol) ;; Emacs 26.3 sometimes returns "overlay in no buffer"
+		     (eq (overlay-get ol 'category) 'preview-overlay) ;; Hopefully this identifies preview overlays.
+		     )
            unless (and (memq (overlay-get ol 'preview-state) '(active inactive))
                        (null (overlay-get ol 'queued))
                        (cdr (overlay-get ol 'preview-image)))
