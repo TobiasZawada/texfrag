@@ -134,7 +134,7 @@
     (texfrag-eww eww-mode)
     (texfrag-sx sx-question-mode)
     (texfrag-prog prog-mode)
-    (texfrag-trac-wiki trac-wiki-mode)
+    (texfrag-trac-wiki trac-wiki-mode markdown-mode)
     (texfrag-org org-mode))
   "Alist that maps texfrag setup functions to lists of major modes.
 Each element is a `cons'.
