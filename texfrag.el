@@ -134,7 +134,8 @@
     (texfrag-eww eww-mode)
     (texfrag-sx sx-question-mode)
     (texfrag-prog prog-mode)
-    (texfrag-trac-wiki trac-wiki-mode markdown-mode)
+    (texfrag-trac-wiki trac-wiki-mode)
+    (texfrag-markdown markdown-mode)
     (texfrag-org org-mode))
   "Alist that maps texfrag setup functions to lists of major modes.
 Each element is a `cons'.
@@ -1310,6 +1311,22 @@ nil: dont preserve any minor modes"
                              ("\\\\\\[" "\\\\\\]" "\\\\[" "\\\\]")
                              ("\\\\(" "\\\\)" "\\\\(" "\\\\)")
                              ("\\\\begin{\\([a-z*]+\\)}" "\\\\end{\\1}" "\\\\begin{\\2}" "\\\\end{\\2}"))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; markdown-mode
+
+(defcustom texfrag-markdown-preview-image-links t
+  "Should `texfrag-mode' also preview image links?"
+  :type 'boolean
+  :group 'texfrag)
+
+(defun texfrag-markdown ()
+  "Preview TeX-fragments in markdown files."
+  (setq texfrag-comments-only nil
+        texfrag-frag-alist (append
+			    texfrag-LaTeX-frag-alist
+			    (and texfrag-markdown-preview-image-links
+				 (list (list "!\\[[^]]*\\](" "\\(?: *\\([\"']\\).*?\\1\\)?)" "" "" :generator #'identity))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; html-mode

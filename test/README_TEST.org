@@ -178,6 +178,18 @@ Second html document for testing with eww:
      </body>
    #+END_SRC
 
+** markdown
+#+BEGIN_SRC markdown
+# First Section
+Testing an inline image:
+![Alternative Text](/temp/test.svg)
+Inline image with caption:
+![Alternative Text](/temp/test.svg "Some doc.")
+
+[//] Local Variables:
+[//] eval: (texfrag-mode)
+[//] End:
+#+END_SRC
 
 ** sx
    You need ~sx~ to be installed from ~melpa~ to run this test.
