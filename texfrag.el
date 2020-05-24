@@ -618,6 +618,33 @@ Relevant characters are replaced by _hex-number."
                    (format "_%0.2X" char))))
                name ""))
 
+(defun texfrag-LaTeX-dir (&optional mkdir)
+  "Return directory where to write preview files.
+Allow creation of temporary directory if MKDIR is non-nil."
+  (if (or
+       (and
+	(file-name-absolute-p texfrag-subdir)
+	(or
+	 (when (file-exists-p texfrag-subdir)
+	   (unless (file-writable-p texfrag-subdir)
+	     (user-error "Existing directory texfrag-subdir cannot be written to"))
+	   t)
+	 (when-let ((dir (file-name-directory texfrag-subdir))) ;; should never fail for absolute directories
+	   (file-writable-p dir))))
+       (file-writable-p default-directory))
+      (directory-file-name (expand-file-name texfrag-subdir))
+    (unless mkdir
+      (user-error "Default directory is write protected and texfrag-LaTeX-file is not allowed to create a temporary directory"))
+    (make-temp-file (concat "texfrag-"
+			    (substring (buffer-name)
+				       nil
+				       (min
+					(- texfrag-LaTeX-max-file-name-length 20) ;; Leave space for the appended random characters.
+					(length (buffer-name)))
+				       )
+			    "-")
+		    t)))
+
 (defun texfrag-LaTeX-file (&optional absolute mkdir prv-dir)
   "Return name of LaTeX file corresponding to the current buffers source file.
 Return the absolute file name if ABSOLUTE is non-nil.
@@ -628,19 +655,7 @@ Return the preview directory instead of the LaTeX file name if PRV-DIR is non-ni
 		       (and (buffer-live-p texfrag-tex-buffer)
 			    (buffer-file-name texfrag-tex-buffer))))
 	 (tex-dir (or (and tex-path (file-name-directory tex-path))
-		      (if (file-writable-p default-directory)
-                          (directory-file-name (expand-file-name texfrag-subdir))
-			(unless mkdir
-			  (user-error "Default directory is write protected and tex-path is not allowed to create a temporary directory"))
-			(make-temp-file (concat "texfrag-"
-						(substring (buffer-name)
-							   nil
-							   (min
-							    (- texfrag-LaTeX-max-file-name-length 20) ;; Leave space for the appended random characters.
-							    (length (buffer-name)))
-							   )
-						"-")
-					t))))
+		      (texfrag-LaTeX-dir mkdir)))
          (tex-file (and tex-path (file-name-nondirectory tex-path))))
     ;; File names generated from buffer names of org source edit buffers can be pretty long.
     ;; Pityingly I had to note that the TeX toolchain including gs

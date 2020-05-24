@@ -50,7 +50,7 @@ emacs -Q --debug-init --eval '(package-initialize)' -l texfrag.el
      #include <stdio.h>
      /**
 	- Testing dollar fragments: Einstein's formula of the photo-voltaic process: \f$E=h\cdot f\f$
-	- Testing bracket fragments: B-spline basis function
+	- Testig bracket fragments: B-spline basis function
 	\f[
 	b(x) = (x_{i+d}-x_i)\cdot [x_i,\ldots,x_{i+d}]_y (y-x)^d_+
 	\f]
@@ -180,15 +180,15 @@ Second html document for testing with eww:
 
 ** markdown
 #+BEGIN_SRC markdown
-# First Section
-Testing an inline image:
-![Alternative Text](/temp/test.svg)
-Inline image with caption:
-![Alternative Text](/temp/test.svg "Some doc.")
+  # First Section
+  Testing an inline image:
+  ![Alternative Text](/tmp/test.svg)
+  Inline image with caption:
+  ![Alternative Text](/tmp/test.svg "Some doc.")
 
-[//] Local Variables:
-[//] eval: (texfrag-mode)
-[//] End:
+  [//] Local Variables:
+  [//] eval: (texfrag-mode)
+  [//] End:
 #+END_SRC
 
 ** sx
