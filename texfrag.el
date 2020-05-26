@@ -1534,6 +1534,49 @@ This is an around advice for `preview-disabled-string' as FUN with arg OV."
 (add-hook 'LaTeX-mode-hook #'texfrag-show-last--preview-menu)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 
+(define-minor-mode texfrag-autogen-mode
+  "Automatically re-generate edited overlays when point leaves them.")
+
+(defvar texfrag-autogen-list nil
+  "List of overlays to be re-generated after edits.")
+
+(defun texfrag-autogen-post-command ()
+  "Run `texfrag-region' for all overlays registered in `texfrag-autogen-list'."
+  (message "*")
+  (dolist (ol texfrag-autogen-list)
+    (let ((buf (overlay-buffer ol)))
+      (if buf
+	  (with-current-buffer buf
+	    (let ((b (overlay-start ol))
+		  (e (overlay-end ol))
+		  (pt (point)))
+	      (when (or (< pt b)
+			(> pt e))
+		(texfrag-region b e)
+		(setq texfrag-autogen-list (remove ol texfrag-autogen-list))))
+	    (setq texfrag-autogen-list (remove ol texfrag-autogen-list))))))
+  (unless texfrag-autogen-list
+    (remove-hook 'post-command-hook #'texfrag-autogen-post-command)))
+
+(defun texfrag-autogen-after-disable (ol)
+  "Re-generate preview overlay OL after edit.
+Runs after `preview-disable' if `texfrag-autogen-mode' is on.
+Adds OL to `texfrag-autogen-list' and triggers `texfrag-region'
+for the region covered by OL in `post-command-hook'.
+That is done by locally adding `texfrag-autogen-post-command' to `post-command-hook'."
+  (let ((buf (overlay-buffer ol)))
+    (when (and buf
+	       (with-current-buffer buf
+		 (and
+		  texfrag-mode
+		  texfrag-autogen-mode)))
+      (push ol texfrag-autogen-list)
+      (add-hook 'post-command-hook #'texfrag-autogen-post-command t))))
+
+(advice-add 'preview-disable :after #'texfrag-autogen-after-disable)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (provide 'texfrag)
 ;;; texfrag.el ends here
