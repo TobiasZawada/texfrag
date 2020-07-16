@@ -277,6 +277,7 @@ Defaults to the empty string.  Should include the enclosing brackets."
 (require 'tex)
 (require 'subr-x)
 (require 'face-remap) ;;< `text-scale-mode'
+(require 'seq)
 
 (defvar-local texfrag-header-function #'texfrag-header-default
   "Function that collects all LaTeX header contents from the current buffer.")
