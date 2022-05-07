@@ -191,6 +191,25 @@ Second html document for testing with eww:
   [//] End:
 #+END_SRC
 
+** Asciidoc
+
+#+BEGIN_SRC adoc :tangle /tmp/test.adoc
+  = Test for Adoc files
+  :stem: latexmath
+  :imagesdir: /tmp
+
+  == Some formula
+
+  Some inline formula latexmath:[z=\sqrt{x^2+y^2}]
+
+  [latexmath]
+  ++++
+  z = \sqrt{x^2+y^2}
+  ++++
+
+  image::test.svg[]
+#+END_SRC
+
 ** sx
    You need ~sx~ to be installed from ~melpa~ to run this test.
 
