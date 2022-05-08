@@ -194,20 +194,20 @@ Second html document for testing with eww:
 ** Asciidoc
 
 #+BEGIN_SRC adoc :tangle /tmp/test.adoc
-  = Test for Adoc files
-  :stem: latexmath
-  :imagesdir: /tmp
+= Test for Adoc files
+:stem: latexmath
+:imagesdir: /tmp
 
-  == Some formula
+== Some formula
 
-  Some inline formula latexmath:[z=\sqrt{x^2+y^2}]
+Some inline formula latexmath:[z=\sqrt{x^2+y^2}]
 
-  [latexmath]
-  ++++
-  z = \sqrt{x^2+y^2}
-  ++++
+[latexmath]
+++++
+  E = mc^2
+++++
 
-  image::test.svg[]
+image::test.svg[]
 #+END_SRC
 
 ** sx

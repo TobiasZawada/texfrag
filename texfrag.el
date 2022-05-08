@@ -1443,6 +1443,22 @@ Filter ARGS advice for `org-html--wrap-latex-environment'."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; adoc-mode
 
+(defcustom texfrag-adoc-local-attr "local-attr"
+  "Name of the attribute for local attribute definitions.
+If the following lines are part of the document header,
+then texfrag uses someDirForTexfrag for the attribute {imagesdir}
+and Asciidoctor uses {someDirForAsciidoctor} for {imagesdir}.
+
+:local-attr: :imagesdir: someDirForTexfrag
+:imagesdir: someDirForAsciidoctor"
+  :type 'string
+  :group 'adoc)
+
+(defcustom texfrag-adoc-attr-substitution-max-count 5
+  "Maximal number of recursive attribute substitutions at the same point."
+  :type 'integer
+  :group 'adoc)
+
 (defun texfrag-adoc-comment-forward (&optional count empty-line-stop)
   "Skip forward over COUNT comments.
 If EMPTY-LINE-STOP is non-nil stop at empty lines.
@@ -1486,6 +1502,10 @@ If COUNT comments are skipped as requested return t else return nil."
 (defconst texfrag-adoc-attr-regexp "[[:alnum:]_][[:alnum:]_-]+"
   "Regexp matching attribute names.")
 
+(defconst texfrag-adoc-attr-ref-regexp (format "{\\(%s\\)}" texfrag-adoc-attr-regexp)
+  "Regexp matching attribute references.
+The attribute name is in group 1.")
+
 (defvar texfrag-adoc-header-attr-alist nil
   "Alist of the header attributes of the adoc document.
 Each entry is a cons with the attribute name string as car
@@ -1500,7 +1520,7 @@ and binds the value to symbol VAR defaulting to `texfrag-adoc-header-attribute-a
    (goto-char (point-min))
    ;; find beginning of header:
    (texfrag-adoc-comment-forward most-positive-fixnum)
-   (let* ((attr-re (format "^:\\(%s\\):[[:blank:]]*" texfrag-adoc-attr-regexp))
+   (let* ((attr-re (format "^\\(?::%s:\\)?:\\(%s\\):[[:blank:]]*" texfrag-adoc-local-attr texfrag-adoc-attr-regexp))
 	  (attr-re-or-blank-line (concat attr-re "\\|^[[:blank:]]*$"))
 	  ret)
      (while
@@ -1527,6 +1547,26 @@ and binds the value to symbol VAR defaulting to `texfrag-adoc-header-attribute-a
        (set var ret))
      ret)))
 
+(defun texfrag-adoc-substitute-header-attrs (string)
+  "Substitute header attributes in STRING."
+  (let (old-start
+	(start 0)
+	(attrs (texfrag-adoc-read-header))
+	(count 0))
+    (while (setq old-start start
+		 start (string-match texfrag-adoc-attr-ref-regexp string start))
+      (let* ((attr-name (match-string 1 string))
+	     (attr-value (alist-get attr-name attrs nil nil #'string-equal)))
+	(unless attr-value
+	  (user-error "Undefined attribute: %s" attr-name))
+	(setq string (replace-match attr-value t t string)))
+      (when (eq start old-start)
+	(cl-incf count)
+	(when (> count texfrag-adoc-attr-substitution-max-count)
+	  (user-error "Too many recursive attribute substitutions")))
+      ))
+  string)
+
 (defun texfrag-adoc-inline-filter (equation)
   "Filter escape characters ?\\ out of EQUATION."
   (replace-regexp-in-string "\\(\\(?:\\`\\|[^\\\\]\\)\\(\\\\\\\\\\)*\\)\\\\]" "\\1]" equation))
@@ -1534,7 +1574,9 @@ and binds the value to symbol VAR defaulting to `texfrag-adoc-header-attribute-a
 (defun texfrag-adoc-image-generator (file)
   "Transforms FILE name into an absolute path considering :imagesdir:."
   (unless (file-name-absolute-p file)
-    (let ((imagesdir (alist-get "imagesdir" texfrag-adoc-header-attr-alist default-directory nil #'string-equal)))
+    (let* ((imagesdir (alist-get "imagesdir" texfrag-adoc-header-attr-alist default-directory nil #'string-equal))
+	   (imagesdir (and (stringp imagesdir)
+			   (texfrag-adoc-substitute-header-attrs imagesdir))))
       (setq file (expand-file-name file imagesdir))))
   file)
 

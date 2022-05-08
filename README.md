@@ -36,10 +36,21 @@ At the time of writing the list of supported major modes is:
      (example for the last case: `\f{align*}{E=mc^2\f}`)
  - `trac-wiki-mode`
    - recognized LaTeX fragments: `^{{{\n#!latex\n...^}}}` (thereby `^` stands for beginning of line, and `\n` for a linebreak), `$...$`, `\(...\)`, `\[...\]`, and `\begin{...}...\end{...}`
- - `org-mode` (at the time of writing just a proof that cdlatex could be replaced by AUCTeX preview)
-   - recognized LaTeX fragments. `$...$`, `\(...\)`, `\[...\]`, and `\begin{...}...\end{...}`
+ - `org-mode`
+   - recognized LaTeX fragments: `$...$`, `\(...\)`, `\[...\]`, and `\begin{...}...\end{...}`
    - restriction: `org-html-with-latex` is set internally to `'dvipng` because only that variant works with `texfrag`
    - separate function `texfrag-org-header` for `texfrag-header-function` that ensures that org LaTeX header options are recognized
+ - `adoc-mode`
+   - recognized LaTeX fragments:
+     - `latexmath:[...]`
+	 - stem-blocks of type `[latexmath]`
+	 - blocks of type `image:...[]`
+   - global attributes like `:imagesdir:` are resolved recursively, as required for adoc
+   - global attribute settings can be overridden by `:local-attr:` for texfrag; The first occurence of an attribute wins. E.g., with the following global attributes texfrag would use `/temp` as image directory and `asciidoctor` would use the subdirectory `images`.
+   ````
+	   :local-attr: :imagesdir: /temp
+	   :imagesdir: images
+   ````
    
 All major modes derived from the listed modes are automatically also supported.
 
