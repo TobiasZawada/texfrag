@@ -891,7 +891,7 @@ The current buffer is the one stored in variable `TeX-command-buffer'.")
   "Insert part of the TeX buffer described by FUN.
 FUN may be a function returning the string to be inserted
 or the string itself."
-  (declare (debug form))
+  (declare (debug (form)))
   `(insert (texfrag-with-source-buffer
 	    (cond
 	     ((stringp ,fun) ,fun)
@@ -945,6 +945,7 @@ But take `text-scale-mode-amount' into account."
 (defvar auto-insert)
 (defvar texfrag--text-scale-mode-step)
 (defvar text-scale-mode-step)
+
 (defun texfrag-region (&optional b e)
   "Collect LaTeX fragments in region from B to E in the LaTeX target file.
 Thereby, the LaTeX target file is that one returned by
@@ -962,11 +963,12 @@ B defaults to `point-min' and E defaults to `point-max'."
   (let ((make-backup-files nil)
 	(texfrag-inhibit t)
 	(tex-path (texfrag-LaTeX-file t t))
-		(src-buf (current-buffer))
+	(src-buf (current-buffer))
+	(src-buf-dir default-directory)
         (coding-sys (intern-soft ;; LaTeX does not accept a byte order mark:
-					 (replace-regexp-in-string
-					  "-with-signature" ""
-					  (symbol-name (or coding-system-for-write buffer-file-coding-system)))))
+		     (replace-regexp-in-string
+		      "-with-signature" ""
+		      (symbol-name (or coding-system-for-write buffer-file-coding-system)))))
 	tex-buf
 	found
 	found-str
@@ -999,8 +1001,8 @@ B defaults to `point-min' and E defaults to `point-max'."
 	    (setq ol (make-overlay found-b found-e))
 	    (unless found-str ; only modify the buffer there if at least one LaTeX fragment
 	      (with-current-buffer tex-buf
-			(set-buffer-file-coding-system coding-sys)
-			(delete-region (point-min) (point-max))))
+		(set-buffer-file-coding-system coding-sys)
+		(delete-region (point-min) (point-max))))
 	    (setq found-str (buffer-substring-no-properties found-b found-e))
 	    (overlay-put ol 'texfrag-string found-str)
 	    (with-current-buffer tex-buf
@@ -1011,16 +1013,22 @@ B defaults to `point-min' and E defaults to `point-max'."
 	  (cl-assert (buffer-live-p tex-buf))
 	  (with-current-buffer tex-buf
 	    (message "Running texfrag with LaTeX target buffer %S and source buffer %S" tex-buf src-buf)
-	    (setq-local texfrag-source-buffer src-buf)
-	    (put 'texfrag-source-buffer 'permanent-local t)
-	    (texfrag-insert-tex-part texfrag-tail-function)
-	    (goto-char (point-min))
-	    (texfrag-insert-tex-part texfrag-header-function)
-            (texfrag-insert-tex-part "\n\\begin{document}")
-	    (save-buffer)
 	    (let (TeX-mode-hook
 		  LaTeX-mode-hook) ;; Don't activate texfrag-mode in style buffers (Elisp files).
 	      (TeX-latex-mode)
+	      (when src-buf-dir
+		(setq-local preview-TeX-style-dir (concat
+						   (directory-file-name src-buf-dir)
+						   (and preview-TeX-style-dir ":")
+						   preview-TeX-style-dir)))
+	      (preview-set-texinputs)
+	      (setq-local texfrag-source-buffer src-buf)
+	      (put 'texfrag-source-buffer 'permanent-local t)
+	      (texfrag-insert-tex-part texfrag-tail-function)
+	      (goto-char (point-min))
+	      (texfrag-insert-tex-part texfrag-header-function)
+              (texfrag-insert-tex-part "\n\\begin{document}")
+	      (save-buffer)
 	      (add-hook 'texfrag-after-preview-hook #'texfrag-after-tex t t)
 	      (with-current-buffer src-buf
 		(setq texfrag-running tex-buf))
@@ -1200,9 +1208,7 @@ Example:
 (define-minor-mode texfrag-mode
   "Preview LaTeX fragments in current buffer with the help of the
 `preview' package."
-  nil
-  " TeX"
-  nil
+  :lighter " TeX"
   (let ((setup-function (texfrag-find-setup-function)))
     (when setup-function
       (funcall setup-function)))
@@ -1467,7 +1473,7 @@ If COUNT comments are skipped as requested return t else return nil."
   (let ((found t)
 	(skip (if empty-line-stop "[:blank:]" "[:space:]\n")))
     (while (and found
-		(>=  (decf count) 0))
+		(>=  (cl-decf count) 0))
       (skip-chars-forward skip)
       (cond
        ((looking-at "\n[[:blank:]]*\n")
@@ -1756,11 +1762,11 @@ or as `sx-question-mode-after-print-hook'."
 
 (defun texfrag-scale (scale)
   "Set SCALE factor for `preview-scale'."
-  (interactive "nScale Factor:")
+  (interactive (list (read-number "Scale Factor: " texfrag-scale)))
   (setq-local texfrag-scale scale)
   (texfrag-region (point-min) (point-max)))
 
-(easy-menu-add-item texfrag-mode-map '(menu-bar TeX) ["Set Preview Scale" texfrag-scale t])
+(easy-menu-add-item texfrag-mode-map '("menu-bar" "tex") ["Set Preview Scale" texfrag-scale t])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1821,7 +1827,7 @@ This is an around advice for `preview-disabled-string' as FUN with arg OV."
   texfrag-show-last-mode
   texfrag-show-last-mode-turn-on)
 
-(easy-menu-add-item texfrag-mode-map '(menu-bar TeX) ["Show Last Preview When Editing" (texfrag-show-last-mode 'toggle) :enable t :style toggle :selected texfrag-show-last-mode])
+(easy-menu-add-item texfrag-mode-map '("menu-bar" "tex") ["Show Last Preview When Editing" (texfrag-show-last-mode 'toggle) :enable t :style toggle :selected texfrag-show-last-mode])
 
 (defun texfrag-show-last--preview-menu ()
   "Add `texfrag-show-last-mode' entry to `preview-menu'."
