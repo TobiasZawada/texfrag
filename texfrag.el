@@ -1435,7 +1435,7 @@ Do so only if `texfrag-org-html-inhibit-equation-labels' is non-nil.
 Filter ARGS advice for `org-html--wrap-latex-environment'."
   (if (and (>= (length args) 3)
 	   texfrag-org-html-inhibit-equation-labels)
-      (let ((args (copy-seq args)))
+      (let ((args (cl-copy-seq args)))
 	;; Arguments of `org-html--wrap-latex-environment':
 	;; (CONTENTS _ &optional CAPTION LABEL)
 	(setf (nth 2 args) ;; CAPTION
