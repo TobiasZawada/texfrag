@@ -1015,7 +1015,6 @@ B defaults to `point-min' and E defaults to `point-max'."
 	    (message "Running texfrag with LaTeX target buffer %S and source buffer %S" tex-buf src-buf)
 	    (let (TeX-mode-hook
 		  LaTeX-mode-hook) ;; Don't activate texfrag-mode in style buffers (Elisp files).
-	      (TeX-latex-mode)
 	      (when src-buf-dir
 		(setq-local preview-TeX-style-dir (concat
 						   (directory-file-name src-buf-dir)
@@ -1029,6 +1028,7 @@ B defaults to `point-min' and E defaults to `point-max'."
 	      (texfrag-insert-tex-part texfrag-header-function)
               (texfrag-insert-tex-part "\n\\begin{document}")
 	      (save-buffer)
+	      (LaTeX-mode)
 	      (add-hook 'texfrag-after-preview-hook #'texfrag-after-tex t t)
 	      (with-current-buffer src-buf
 		(setq texfrag-running tex-buf))
@@ -1766,7 +1766,7 @@ or as `sx-question-mode-after-print-hook'."
   (setq-local texfrag-scale scale)
   (texfrag-region (point-min) (point-max)))
 
-(easy-menu-add-item texfrag-mode-map '("menu-bar" "tex") ["Set Preview Scale" texfrag-scale t])
+(easy-menu-add-item texfrag-mode-map '("TeX") ["Set Preview Scale" texfrag-scale t])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1827,14 +1827,15 @@ This is an around advice for `preview-disabled-string' as FUN with arg OV."
   texfrag-show-last-mode
   texfrag-show-last-mode-turn-on)
 
-(easy-menu-add-item texfrag-mode-map '("menu-bar" "tex") ["Show Last Preview When Editing" (texfrag-show-last-mode 'toggle) :enable t :style toggle :selected texfrag-show-last-mode])
+(easy-menu-add-item texfrag-mode-map '("TeX") ["Show Last Preview When Editing" (texfrag-show-last-mode 'toggle) :enable t :style toggle :selected texfrag-show-last-mode])
 
 (defun texfrag-show-last--preview-menu ()
   "Add `texfrag-show-last-mode' entry to `preview-menu'."
   (when (and
 	 (boundp 'preview-menu)
 	 (keymapp preview-menu))
-    (easy-menu-add-item preview-menu nil ["Show Last Preview When Editing" (texfrag-show-last-mode 'toggle) :enable t :style toggle :selected texfrag-show-last-mode] "Read documentation")))
+    (easy-menu-add-item preview-menu nil ["Show Last Preview When Editing" (texfrag-show-last-mode 'toggle) :enable t :style toggle :selected texfrag-show-last-mode] "Read documentation")
+    ))
 
 (add-hook 'LaTeX-mode-hook #'texfrag-show-last--preview-menu)
 
